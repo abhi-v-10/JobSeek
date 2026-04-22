@@ -89,3 +89,6 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# Documentation
+PROJECT_DOCUMENTATION.md
