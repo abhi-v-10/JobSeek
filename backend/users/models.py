@@ -1,6 +1,30 @@
 from django.db import models
-from django.contrib.auth.models import User
-from django.db.models import JSONField
+from django.conf import settings
+from django.contrib.auth.models import AbstractUser, Group, Permission
+
+
+class User(AbstractUser):
+    # Keep canonical display name in Profile.full_name only.
+    first_name = None
+    last_name = None
+    groups = models.ManyToManyField(
+        Group,
+        blank=True,
+        related_name="users_user_set",
+        related_query_name="user",
+        db_table="auth_user_groups",
+    )
+    user_permissions = models.ManyToManyField(
+        Permission,
+        blank=True,
+        related_name="users_user_set",
+        related_query_name="user",
+        db_table="auth_user_user_permissions",
+    )
+
+    class Meta:
+        db_table = "auth_user"
+        managed = False
 
 class Profile(models.Model):
     ROLE_CHOICES = (
@@ -13,7 +37,7 @@ class Profile(models.Model):
         ("poster", "Job Poster"),
     )
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
     full_name = models.CharField(max_length=255, blank=True)
     mobile_number = models.CharField(max_length=20, blank=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="user")
@@ -24,7 +48,10 @@ class Profile(models.Model):
     )
 
     resume = models.FileField(upload_to="resumes/", null=True, blank=True)
+    profile_picture = models.ImageField(upload_to="profile_pictures/", null=True, blank=True)
     resume_uploaded_at = models.DateTimeField(null=True, blank=True)
+    linkedin_url = models.URLField(max_length=500, blank=True, default="")
+    github_url = models.URLField(max_length=500, blank=True, default="")
 
     # AI extracted fields
     parsed_resume = models.JSONField(null=True, blank=True)
