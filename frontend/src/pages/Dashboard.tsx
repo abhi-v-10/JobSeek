@@ -99,7 +99,7 @@ const Dashboard = () => {
 
   return (
     <ProtectedRoute>
-      <div className="flex-1 flex flex-col p-6 max-w-7xl mx-auto w-full">
+      <div className="flex-1 flex flex-col p-4 sm:p-6 max-w-7xl mx-auto w-full">
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-1">Dashboard</h1>
         <p className="text-zinc-500 dark:text-zinc-400 mb-8">Welcome back! Here's an overview of your job search.</p>
 

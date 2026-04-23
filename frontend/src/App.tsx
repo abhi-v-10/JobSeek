@@ -12,6 +12,7 @@ import PostJob from './pages/PostJob'
 import ProfileSettings from './pages/ProfileSettings'
 import Resume from './pages/Resume'
 import MyJobs from './pages/MyJobs'
+import OAuthCallback from './pages/OAuthCallback'
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
           <Route path="/profile-settings" element={<Navigate to="/profile" replace />} />
           <Route path="/resume" element={<Resume />} />
           <Route path="/my-jobs" element={<MyJobs />} />
+          <Route path="/oauth/callback" element={<OAuthCallback />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

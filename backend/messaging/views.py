@@ -6,6 +6,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+
 from .models import Message, Conversation
 from .serializers import MessageSerializer, ConversationSerializer
 
@@ -56,9 +59,20 @@ class MessageCreateAPIView(generics.CreateAPIView):
         
         receiver = conversation.participant_2 if conversation.participant_1 == self.request.user else conversation.participant_1
         
-        serializer.save(sender=self.request.user, receiver=receiver, conversation=conversation)
+        instance = serializer.save(sender=self.request.user, receiver=receiver, conversation=conversation)
         # Update conversation timestamp
         conversation.save()
+        
+        # Broadcast the message to WebSocket room group
+        channel_layer = get_channel_layer()
+        room_group_name = f'chat_{conversation.id}'
+        async_to_sync(channel_layer.group_send)(
+            room_group_name,
+            {
+                'type': 'chat_message',
+                'message': serializer.data
+            }
+        )
 
 # Keep for legacy/internal use if needed
 class MessageListAPIView(generics.ListAPIView):

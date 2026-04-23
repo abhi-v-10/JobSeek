@@ -25,7 +25,8 @@ class Message(models.Model):
         related_name="received_messages",
     )
 
-    content = models.TextField()
+    content = models.TextField(blank=True, null=True)
+    attachment = models.FileField(upload_to="message_attachments/", null=True, blank=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

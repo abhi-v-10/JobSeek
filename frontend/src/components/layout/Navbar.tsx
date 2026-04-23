@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Briefcase, MessageSquare, Bot, PlusCircle, Search, LogIn, LogOut, LayoutDashboard, User, Settings, Upload, FileText, List } from 'lucide-react';
+import { Briefcase, MessageSquare, Bot, PlusCircle, Search, LogIn, LogOut, LayoutDashboard, User, Settings, Upload, FileText, List, X } from 'lucide-react';
 import api from '../../lib/axios';
 
 const Navbar = () => {
@@ -54,9 +54,11 @@ const Navbar = () => {
     { name: 'Post Job', path: '/post-job', icon: <PlusCircle size={18} /> },
   ];
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   return (
-    <nav className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 relative z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-50">
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex-shrink-0">
@@ -86,7 +88,7 @@ const Navbar = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 sm:gap-6">
             <button className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
               <Search size={20} />
             </button>
@@ -112,7 +114,7 @@ const Navbar = () => {
                   ) : (
                     <User size={16} />
                   )}
-                  <span>Profile</span>
+                  <span className="hidden sm:inline">Profile</span>
                 </button>
 
                 {isDropdownOpen && (
@@ -178,9 +180,45 @@ const Navbar = () => {
                 <span>Sign in</span>
               </button>
             )}
+
+            {/* Mobile Menu Button */}
+            <button 
+              className="md:hidden p-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <List size={24} />}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Navigation Overlay */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden absolute top-16 left-0 w-full bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shadow-xl z-40 animate-in slide-in-from-top-2 duration-200">
+          <div className="px-4 py-6 space-y-4">
+            {navLinks.map((link) => {
+              const isActive = location.pathname.startsWith(link.path);
+              return (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center gap-4 px-4 py-3 rounded-xl text-base font-medium transition-all ${
+                    isActive
+                      ? 'bg-zinc-900 text-white dark:bg-zinc-50 dark:text-zinc-900 shadow-lg shadow-zinc-900/10'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
+                  }`}
+                >
+                  <span className={isActive ? 'text-white dark:text-zinc-900' : 'text-zinc-400'}>
+                    {link.icon}
+                  </span>
+                  {link.name}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

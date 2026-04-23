@@ -2,9 +2,9 @@ import api from '../lib/axios';
 
 export interface Conversation {
   id: number;
-  participant_1: { id: number; username: string; email: string };
-  participant_2: { id: number; username: string; email: string };
-  job: { id: number; position?: string; work?: string; company?: string };
+  participant_1: { id: number; username: string; email: string; profile_picture?: string };
+  participant_2: { id: number; username: string; email: string; profile_picture?: string };
+  job: { id: number; position?: string; work?: string; company?: string; posted_by?: number };
   last_message: Message | null;
   unread_count: number;
   created_at: string;
@@ -17,7 +17,8 @@ export interface Message {
   sender: number;
   sender_username: string;
   receiver: number;
-  content: string;
+  content: string | null;
+  attachment?: string | null;
   is_read: boolean;
   created_at: string;
 }
@@ -33,11 +34,23 @@ export const messagesService = {
     return response.data;
   },
 
-  sendMessage: async (conversationId: number, content: string): Promise<Message> => {
-    const response = await api.post('/messages/', {
-      conversation: conversationId,
-      content: content
-    });
-    return response.data;
+  sendMessage: async (conversationId: number, content: string, file?: File | null): Promise<Message> => {
+    if (file) {
+      const formData = new FormData();
+      formData.append('conversation', conversationId.toString());
+      if (content) formData.append('content', content);
+      formData.append('attachment', file);
+      
+      const response = await api.post('/messages/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    } else {
+      const response = await api.post('/messages/', {
+        conversation: conversationId,
+        content: content
+      });
+      return response.data;
+    }
   }
 };

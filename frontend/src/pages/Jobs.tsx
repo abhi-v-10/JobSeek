@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import { jobsService } from '../services/jobs';
 import type { Job } from '../services/jobs';
-import { MapPin, Building, Eye, Briefcase, Bookmark, BookmarkCheck, UserCheck, AlertCircle } from 'lucide-react';
+import { MapPin, Building, Eye, Briefcase, Bookmark, BookmarkCheck, UserCheck, AlertCircle, Search, Filter } from 'lucide-react';
 import ApplyModal from '../components/ApplyModal';
 
 // ─── Twin-button styles ──────────────────────────────────────────────────────
@@ -26,6 +26,14 @@ const Jobs = () => {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [eligibilityMsg, setEligibilityMsg] = useState<{ text: string; missing: string[] } | null>(null);
+
+  // Filters state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [workModeFilter, setWorkModeFilter] = useState('all');
+  const [minSalaryFilter, setMinSalaryFilter] = useState('');
 
   useEffect(() => {
     jobsService.getJobs()
@@ -83,13 +91,124 @@ const Jobs = () => {
 
   const jobTitle = (job: Job) => job.position || job.work || '(Untitled)';
 
+  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (categoryFilter !== 'all' ? 1 : 0) + (workModeFilter !== 'all' ? 1 : 0) + (minSalaryFilter ? 1 : 0);
+
+  const filteredJobs = jobs.filter(job => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const posMatch = job.position?.toLowerCase().includes(q) || job.work?.toLowerCase().includes(q) || jobTitle(job).toLowerCase().includes(q);
+      const skillMatch = job.required_experience_fields?.toLowerCase().includes(q);
+      const companyMatch = job.company?.toLowerCase().includes(q);
+      if (!posMatch && !skillMatch && !companyMatch) return false;
+    }
+    
+    if (statusFilter === 'applied' && !job.is_applied) return false;
+    if (statusFilter === 'not_applied' && job.is_applied) return false;
+    if (statusFilter === 'saved' && !job.is_saved) return false;
+
+    if (categoryFilter !== 'all' && job.job_type !== categoryFilter) return false;
+    if (workModeFilter !== 'all' && job.work_mode !== workModeFilter) return false;
+
+    if (minSalaryFilter) {
+      const minSal = parseInt(minSalaryFilter, 10);
+      if (!isNaN(minSal)) {
+        if (job.salary_min == null && job.salary_max == null) return false;
+        if (job.salary_max != null && job.salary_max < minSal) return false;
+      }
+    }
+
+    return true;
+  });
+
   return (
     <ProtectedRoute>
-      <div className="flex-1 flex flex-col p-6 max-w-7xl mx-auto w-full">
-        <div className="mb-8">
+      <div className="flex-1 flex flex-col p-4 sm:p-6 max-w-7xl mx-auto w-full">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">Available Jobs</h1>
           <p className="text-zinc-500 dark:text-zinc-400">Find your next opportunity from our curated list of positions</p>
         </div>
+
+        {/* Filters Section */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+            <input 
+              type="text"
+              placeholder="Search positions or skills..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100 dark:text-white"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors dark:text-zinc-50 shrink-0"
+          >
+            <Filter size={18} />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-1 px-2 py-0.5 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 rounded-full text-xs">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {showFilters && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Interaction</label>
+              <select 
+                value={statusFilter} 
+                onChange={e => setStatusFilter(e.target.value)}
+                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none dark:text-white"
+              >
+                <option value="all">All Jobs</option>
+                <option value="applied">Applied</option>
+                <option value="not_applied">Not Applied</option>
+                <option value="saved">Saved</option>
+              </select>
+            </div>
+            
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Category</label>
+              <select 
+                value={categoryFilter} 
+                onChange={e => setCategoryFilter(e.target.value)}
+                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none dark:text-white"
+              >
+                <option value="all">All Categories</option>
+                <option value="corporate">Corporate</option>
+                <option value="domestic">Domestic</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Work Mode</label>
+              <select 
+                value={workModeFilter} 
+                onChange={e => setWorkModeFilter(e.target.value)}
+                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none dark:text-white"
+              >
+                <option value="all">All Modes</option>
+                <option value="onsite">On-site</option>
+                <option value="remote">Remote (WFH)</option>
+                <option value="hybrid">Hybrid</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Min. Salary (Yearly)</label>
+              <input 
+                type="number"
+                placeholder="e.g. 50000"
+                value={minSalaryFilter}
+                onChange={e => setMinSalaryFilter(e.target.value)}
+                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:outline-none dark:text-white"
+              />
+            </div>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center">
@@ -97,13 +216,13 @@ const Jobs = () => {
           </div>
         ) : error ? (
           <div className="flex-1 flex items-center justify-center text-red-500">{error}</div>
-        ) : jobs.length === 0 ? (
+        ) : filteredJobs.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-zinc-400">No jobs available at the moment.</p>
+            <p className="text-zinc-400">No jobs match your filters.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {jobs.map(job => {
+            {filteredJobs.map(job => {
               const wm = job.work_mode ? WORK_MODE_LABELS[job.work_mode] : null;
               const isOwn = !!job.is_own_job;
 

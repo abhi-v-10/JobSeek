@@ -24,6 +24,7 @@ urlpatterns = [
     path("api/users/", include("users.urls", namespace="users")),
     path("api/jobs/", include("jobs.urls", namespace="jobs")),
     path("api/messages/", include("messaging.urls", namespace="messaging")),
+    path("accounts/", include("allauth.urls")),
 ]
 
 if settings.DEBUG:

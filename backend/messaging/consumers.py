@@ -66,11 +66,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def chat_message(self, event):
         message = event['message']
 
+        # Mark as read if I am the receiver
+        if message['receiver'] == self.scope['user'].id:
+            await self.mark_message_read(message['id'])
+            message['is_read'] = True
+
         # Send message to WebSocket
         await self.send(text_data=json.dumps({
             'type': 'chat_message',
             'message': message
         }))
+
+    @database_sync_to_async
+    def mark_message_read(self, message_id):
+        Message.objects.filter(id=message_id).update(is_read=True)
 
     # Receive typing status from room group
     async def typing_status(self, event):
