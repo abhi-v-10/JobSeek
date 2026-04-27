@@ -66,7 +66,6 @@ class Profile(models.Model):
 class Skill(models.Model):
     CATEGORY_CHOICES = (
         ("technical", "Technical"),
-        ("soft", "Soft"),
         ("language", "Language"),
         ("other", "Other"),
     )

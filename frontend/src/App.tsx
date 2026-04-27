@@ -14,9 +14,12 @@ import Resume from './pages/Resume'
 import MyJobs from './pages/MyJobs'
 import OAuthCallback from './pages/OAuthCallback'
 
+import { ThemeProvider } from './context/ThemeContext'
+
 function App() {
   return (
-    <Router>
+    <ThemeProvider>
+      <Router>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Landing />} />
@@ -36,7 +39,8 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
-    </Router>
+      </Router>
+    </ThemeProvider>
   )
 }
 

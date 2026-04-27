@@ -3,9 +3,17 @@ from rest_framework import serializers
 from .models import Profile, Skill
 
 
+class SkillSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Skill
+        fields = ["id", "profile", "name", "category", "created_at"]
+        read_only_fields = ["created_at", "profile"]
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     email = serializers.EmailField(source="user.email", read_only=True)
+    skills = SkillSerializer(many=True, read_only=True)
 
     class Meta:
         model = Profile
@@ -26,12 +34,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             "parsed_resume",
             "created_at",
             "updated_at",
+            "skills",
         ]
         read_only_fields = ["created_at", "updated_at", "parsed_resume", "user"]
-
-
-class SkillSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Skill
-        fields = ["id", "profile", "name", "category", "created_at"]
-        read_only_fields = ["created_at", "profile"]

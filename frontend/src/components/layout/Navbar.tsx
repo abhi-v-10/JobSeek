@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Briefcase, MessageSquare, Bot, PlusCircle, Search, LogIn, LogOut, LayoutDashboard, User, Settings, Upload, FileText, List, X } from 'lucide-react';
 import api from '../../lib/axios';
+import ThemeToggle from '../ui/ThemeToggle';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -57,12 +58,12 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-50">
+    <nav className="border-b border-border bg-background sticky top-0 z-50">
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex-shrink-0">
-              <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50">JobSeek</span>
+              <span className="text-xl font-bold text-foreground">JobSeek</span>
             </Link>
             
             <div className="hidden md:block">
@@ -75,8 +76,8 @@ const Navbar = () => {
                       to={link.path}
                       className={`flex items-center gap-2 text-sm font-medium transition-colors ${
                         isActive
-                          ? 'text-zinc-900 dark:text-zinc-50'
-                          : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50'
+                          ? 'text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       {link.icon}
@@ -89,6 +90,7 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-4 sm:gap-6">
+            <ThemeToggle />
             <button className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50">
               <Search size={20} />
             </button>
@@ -97,7 +99,7 @@ const Navbar = () => {
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-900 bg-zinc-100 rounded-md hover:bg-zinc-200 dark:text-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-foreground bg-secondary rounded-md hover:bg-accent transition-colors"
                 >
                   {profile?.profile_picture ? (
                     <img 

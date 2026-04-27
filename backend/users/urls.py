@@ -8,6 +8,7 @@ from .views import (
     LogoutAPIView,
     SkillCreateAPIView,
     SkillDeleteAPIView,
+    BulkSkillUpdateAPIView,
     SwitchUserRoleAPIView,
     DashboardAPIView,
 )
@@ -21,6 +22,7 @@ urlpatterns = [
     path("profile/", CurrentProfileAPIView.as_view(), name="profile"),
     path("change-password/", ChangePasswordAPIView.as_view(), name="change-password"),
     path("skills/", SkillCreateAPIView.as_view(), name="skill-create"),
+    path("skills/bulk/", BulkSkillUpdateAPIView.as_view(), name="skills-bulk"),
     path("skills/<int:pk>/", SkillDeleteAPIView.as_view(), name="skill-delete"),
     path("switch-role/", SwitchUserRoleAPIView.as_view(), name="switch-role"),
     path("dashboard/", DashboardAPIView.as_view(), name="dashboard"),

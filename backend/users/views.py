@@ -300,6 +300,42 @@ class SkillDeleteAPIView(generics.DestroyAPIView):
 		return Skill.objects.filter(profile__user=self.request.user)
 
 
+class BulkSkillUpdateAPIView(APIView):
+	permission_classes = [permissions.IsAuthenticated]
+
+	def post(self, request):
+		profile, _ = Profile.objects.get_or_create(user=request.user)
+		skills_data = request.data.get("skills", [])
+		
+		# Expected format: [{"name": "Python", "category": "technical"}, ...]
+		
+		# Clear existing skills or handle sync
+		# For simplicity, we'll clear and recreate or sync based on name/category
+		
+		# Let's group skills by category from the request
+		categories = ["technical", "language", "other"]
+		
+		new_skills = []
+		for skill_item in skills_data:
+			name = skill_item.get("name")
+			category = skill_item.get("category")
+			if name and category in categories:
+				new_skills.append(Skill(profile=profile, name=name, category=category))
+		
+		# Transactional update
+		from django.db import transaction
+		try:
+			with transaction.atomic():
+				# Remove old skills
+				Skill.objects.filter(profile=profile).delete()
+				# Bulk create new ones
+				Skill.objects.bulk_create(new_skills)
+		except Exception as e:
+			return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+			
+		return Response(ProfileSerializer(profile, context={"request": request}).data)
+
+
 class SwitchUserRoleAPIView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
 
