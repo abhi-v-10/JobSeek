@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser, Group, Permission
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -56,8 +57,16 @@ class Profile(models.Model):
     # AI extracted fields
     parsed_resume = models.JSONField(null=True, blank=True)
 
+    # Token invalidation
+    jwt_key = models.CharField(max_length=255, blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def rotate_jwt_key(self):
+        import uuid
+        self.jwt_key = str(uuid.uuid4())
+        self.save(update_fields=["jwt_key", "updated_at"])
 
     def __str__(self):
         return self.user.username
@@ -78,3 +87,32 @@ class Skill(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.profile.user.username})"
+
+
+class PasswordResetOTP(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="password_reset_otps")
+    email = models.EmailField(db_index=True)
+    otp_code = models.CharField(max_length=128)
+    is_verified = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    expires_at = models.DateTimeField(db_index=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    is_used = models.BooleanField(default=False, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["email", "is_used", "is_verified"]),
+            models.Index(fields=["user", "is_used", "created_at"]),
+            models.Index(fields=["expires_at", "is_used"]),
+        ]
+
+    def __str__(self):
+        return f"Password reset OTP for {self.email}"
+
+    def is_expired(self):
+        return timezone.now() >= self.expires_at
+
+    def mark_used(self):
+        self.is_used = True
+        self.save(update_fields=["is_used"])

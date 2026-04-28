@@ -1,17 +1,50 @@
-from django.contrib.auth import authenticate
+import logging
+import secrets
+from datetime import timedelta
+
+from django.conf import settings
+from django.contrib.auth import authenticate, update_session_auth_hash
 from django.contrib.auth import get_user_model
-from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from django.contrib.auth.hashers import check_password, make_password
+from django.core.mail import send_mail
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from .auth import KeyRotationRefreshToken
 
-from .models import Profile, Skill
-from .serializers import ProfileSerializer, SkillSerializer
+from .models import PasswordResetOTP, Profile, Skill
+from .serializers import (
+	ChangePasswordSerializer,
+	ForgotPasswordSendOTPSerializer,
+	ProfileSerializer,
+	ResetPasswordSerializer,
+	SkillSerializer,
+	VerifyOTPSerializer,
+)
 
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+PASSWORD_RESET_OTP_EXPIRY_MINUTES = 5
+PASSWORD_RESET_OTP_MAX_ATTEMPTS = 5
+
+
+def get_serializer_error_message(errors):
+	for field_errors in errors.values():
+		if isinstance(field_errors, list) and field_errors:
+			return str(field_errors[0])
+		if isinstance(field_errors, dict):
+			return get_serializer_error_message(field_errors)
+	return "Invalid request."
+
+
+def generate_otp():
+	return f"{secrets.randbelow(1_000_000):06d}"
 
 
 class CreateUserAPIView(APIView):
@@ -81,7 +114,7 @@ class CreateUserAPIView(APIView):
 			profile.user_type = user_type
 		profile.save()
 
-		refresh = RefreshToken.for_user(user)
+		refresh = KeyRotationRefreshToken.for_user(user)
 		return self._build_success_response(
 			request=request,
 			user=user,
@@ -104,7 +137,6 @@ class LoginAPIView(APIView):
 					"username": user.username,
 					"email": user.email,
 				},
-				"profile": ProfileSerializer(profile, context={"request": request}).data,
 				"tokens": {
 					"access": str(refresh.access_token),
 					"refresh": str(refresh),
@@ -138,7 +170,11 @@ class LoginAPIView(APIView):
 			)
 
 		profile, _ = Profile.objects.get_or_create(user=user)
-		refresh = RefreshToken.for_user(user)
+		
+		# Rotate JWT key to invalidate all previous sessions/tokens immediately
+		profile.rotate_jwt_key()
+		
+		refresh = KeyRotationRefreshToken.for_user(user)
 		return self._build_success_response(
 			request=request,
 			user=user,
@@ -250,37 +286,248 @@ class ChangePasswordAPIView(APIView):
 	permission_classes = [permissions.IsAuthenticated]
 
 	def post(self, request):
-		current_password = request.data.get("current_password") or ""
-		new_password = request.data.get("new_password") or ""
-		confirm_password = request.data.get("confirm_password") or ""
-
-		if not current_password or not new_password or not confirm_password:
+		serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+		if not serializer.is_valid():
+			message = self._get_error_message(serializer.errors)
 			return Response(
-				{"error": "Current password, new password, and confirm password are required"},
+				{"success": False, "message": message},
 				status=status.HTTP_400_BAD_REQUEST,
 			)
 
-		if not request.user.check_password(current_password):
+		if check_password(serializer.validated_data["new_password"], request.user.password):
 			return Response(
-				{"error": "Current password is incorrect"},
+				{"success": False, "message": "New password cannot be the same as the current password."},
 				status=status.HTTP_400_BAD_REQUEST,
 			)
 
-		if new_password != confirm_password:
-			return Response(
-				{"error": "New passwords do not match"},
-				status=status.HTTP_400_BAD_REQUEST,
-			)
-
-		if len(new_password) < 6:
-			return Response(
-				{"error": "Password must be at least 6 characters long"},
-				status=status.HTTP_400_BAD_REQUEST,
-			)
-
-		request.user.set_password(new_password)
+		request.user.set_password(serializer.validated_data["new_password"])
 		request.user.save(update_fields=["password"])
-		return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
+		update_session_auth_hash(request, request.user)
+
+		return Response(
+			{"success": True, "message": "Password changed successfully."},
+			status=status.HTTP_200_OK,
+		)
+
+	def _get_error_message(self, errors):
+		for field_errors in errors.values():
+			if isinstance(field_errors, list) and field_errors:
+				return str(field_errors[0])
+			if isinstance(field_errors, dict):
+				return self._get_error_message(field_errors)
+		return "Unable to change password."
+
+
+class ForgotPasswordSendOTPAPIView(APIView):
+	permission_classes = [permissions.AllowAny]
+
+	def post(self, request):
+		serializer = ForgotPasswordSendOTPSerializer(data=request.data)
+		if not serializer.is_valid():
+			return Response(
+				{"success": False, "message": get_serializer_error_message(serializer.errors)},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		user = serializer.user
+		email = serializer.validated_data["email"]
+		otp = generate_otp()
+		expires_at = timezone.now() + timedelta(minutes=PASSWORD_RESET_OTP_EXPIRY_MINUTES)
+
+		with transaction.atomic():
+			PasswordResetOTP.objects.filter(
+				user=user,
+				email__iexact=email,
+				is_used=False,
+			).update(is_used=True)
+
+			otp_record = PasswordResetOTP.objects.create(
+				user=user,
+				email=email,
+				otp_code=make_password(otp),
+				expires_at=expires_at,
+			)
+
+		try:
+			send_mail(
+				subject="JobSeek Password Reset OTP",
+				message=(
+					"Hello,\n\n"
+					f"Your JobSeek password reset OTP is: {otp}\n\n"
+					"This OTP is valid for 5 minutes.\n\n"
+					"If you did not request this, ignore this email.\n\n"
+					"- JobSeek Team"
+				),
+				from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+				recipient_list=[email],
+				fail_silently=False,
+			)
+		except Exception:
+			logger.exception("Failed to send password reset OTP email.")
+			otp_record.mark_used()
+			return Response(
+				{"success": False, "message": "Unable to send OTP. Please try again later."},
+				status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			)
+
+		return Response(
+			{"success": True, "message": "OTP sent successfully."},
+			status=status.HTTP_200_OK,
+		)
+
+
+class VerifyOTPAPIView(APIView):
+	permission_classes = [permissions.AllowAny]
+
+	def post(self, request):
+		serializer = VerifyOTPSerializer(data=request.data)
+		if not serializer.is_valid():
+			return Response(
+				{"success": False, "message": get_serializer_error_message(serializer.errors)},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		email = serializer.validated_data["email"]
+		otp = serializer.validated_data["otp"]
+
+		with transaction.atomic():
+			otp_record = (
+				PasswordResetOTP.objects.select_for_update()
+				.filter(email__iexact=email, is_used=False)
+				.order_by("-created_at")
+				.first()
+			)
+
+			if not otp_record:
+				return Response(
+					{"success": False, "message": "Invalid or expired OTP."},
+					status=status.HTTP_400_BAD_REQUEST,
+				)
+
+			if otp_record.is_expired():
+				otp_record.mark_used()
+				return Response(
+					{"success": False, "message": "OTP has expired."},
+					status=status.HTTP_400_BAD_REQUEST,
+				)
+
+			if otp_record.attempts >= PASSWORD_RESET_OTP_MAX_ATTEMPTS:
+				otp_record.mark_used()
+				return Response(
+					{"success": False, "message": "Maximum OTP attempts exceeded."},
+					status=status.HTTP_429_TOO_MANY_REQUESTS,
+				)
+
+			if not check_password(otp, otp_record.otp_code):
+				otp_record.attempts += 1
+				update_fields = ["attempts"]
+				response_status = status.HTTP_400_BAD_REQUEST
+				message = "Invalid OTP."
+
+				if otp_record.attempts >= PASSWORD_RESET_OTP_MAX_ATTEMPTS:
+					otp_record.is_used = True
+					update_fields.append("is_used")
+					response_status = status.HTTP_429_TOO_MANY_REQUESTS
+					message = "Maximum OTP attempts exceeded."
+
+				otp_record.save(update_fields=update_fields)
+				return Response(
+					{"success": False, "message": message},
+					status=response_status,
+				)
+
+			if not otp_record.is_verified:
+				otp_record.is_verified = True
+				otp_record.save(update_fields=["is_verified"])
+
+		return Response(
+			{"success": True, "message": "OTP verified successfully."},
+			status=status.HTTP_200_OK,
+		)
+
+
+class ResetPasswordAPIView(APIView):
+	permission_classes = [permissions.AllowAny]
+
+	def post(self, request):
+		serializer = ResetPasswordSerializer(data=request.data)
+		if not serializer.is_valid():
+			return Response(
+				{"success": False, "message": get_serializer_error_message(serializer.errors)},
+				status=status.HTTP_400_BAD_REQUEST,
+			)
+
+		user = serializer.validated_data["user"]
+		email = serializer.validated_data["email"]
+		otp = serializer.validated_data["otp"]
+		new_password = serializer.validated_data["new_password"]
+
+		with transaction.atomic():
+			otp_record = (
+				PasswordResetOTP.objects.select_for_update()
+				.filter(user=user, email__iexact=email, is_used=False)
+				.order_by("-created_at")
+				.first()
+			)
+
+			if not otp_record:
+				return Response(
+					{"success": False, "message": "Invalid or expired OTP."},
+					status=status.HTTP_400_BAD_REQUEST,
+				)
+
+			if otp_record.is_expired():
+				otp_record.mark_used()
+				return Response(
+					{"success": False, "message": "OTP has expired."},
+					status=status.HTTP_400_BAD_REQUEST,
+				)
+
+			if not otp_record.is_verified:
+				return Response(
+					{"success": False, "message": "OTP verification is required before resetting password."},
+					status=status.HTTP_400_BAD_REQUEST,
+				)
+
+			if otp_record.attempts >= PASSWORD_RESET_OTP_MAX_ATTEMPTS:
+				otp_record.mark_used()
+				return Response(
+					{"success": False, "message": "Maximum OTP attempts exceeded."},
+					status=status.HTTP_429_TOO_MANY_REQUESTS,
+				)
+
+			if not check_password(otp, otp_record.otp_code):
+				otp_record.attempts += 1
+				update_fields = ["attempts"]
+				response_status = status.HTTP_400_BAD_REQUEST
+				message = "Invalid OTP."
+
+				if otp_record.attempts >= PASSWORD_RESET_OTP_MAX_ATTEMPTS:
+					otp_record.is_used = True
+					update_fields.append("is_used")
+					response_status = status.HTTP_429_TOO_MANY_REQUESTS
+					message = "Maximum OTP attempts exceeded."
+
+				otp_record.save(update_fields=update_fields)
+				return Response(
+					{"success": False, "message": message},
+					status=response_status,
+				)
+
+			user.set_password(new_password)
+			user.save(update_fields=["password"])
+			otp_record.mark_used()
+
+			PasswordResetOTP.objects.filter(
+				user=user,
+				email__iexact=email,
+				is_used=False,
+			).update(is_used=True)
+
+		return Response(
+			{"success": True, "message": "Password reset successfully."},
+			status=status.HTTP_200_OK,
+		)
 
 
 class SkillCreateAPIView(generics.CreateAPIView):

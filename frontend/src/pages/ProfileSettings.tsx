@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import api from '../lib/axios';
 import { TECHNICAL_SKILLS, LANGUAGES } from '../constants/skills';
+import { Shield, Key, Mail, Fingerprint } from 'lucide-react';
 
 const ProfileSettings = () => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'skills'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'skills' | 'security'>('profile');
   const [formData, setFormData] = useState({
     username: '',
     full_name: '',
@@ -18,6 +20,14 @@ const ProfileSettings = () => {
   const [profilePic, setProfilePic] = useState<File | null>(null);
   const [existingProfilePic, setExistingProfilePic] = useState<string | null>(null);
   
+  // Security state
+  const [passwordData, setPasswordData] = useState({
+    old_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+
   // Skills state
   const [selectedTech, setSelectedTech] = useState<string[]>([]);
   const [selectedLangs, setSelectedLangs] = useState<string[]>([]);
@@ -87,6 +97,10 @@ const ProfileSettings = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setProfilePic(e.target.files[0]);
@@ -127,7 +141,7 @@ const ProfileSettings = () => {
       console.error('Update error:', err);
       setMessage({ 
         type: 'error', 
-        text: err.response?.data?.detail || err.response?.data?.error || 'Failed to update profile.' 
+        text: err.response?.data?.message || err.response?.data?.detail || err.response?.data?.error || 'Failed to update profile.' 
       });
     } finally {
       setIsLoading(false);
@@ -153,7 +167,50 @@ const ProfileSettings = () => {
       console.error('Skills update error:', err);
       setMessage({ 
         type: 'error', 
-        text: 'Failed to update skills.' 
+        text: err.response?.data?.message || err.response?.data?.detail || 'Failed to update skills.' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmitChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage({ type: '', text: '' });
+
+    if (!passwordData.old_password || !passwordData.new_password || !passwordData.confirm_password) {
+      setMessage({ type: 'error', text: 'All fields are required.' });
+      return;
+    }
+
+    if (passwordData.new_password.length < 8) {
+      setMessage({ type: 'error', text: 'New password must be at least 8 characters long.' });
+      return;
+    }
+
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      setMessage({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+
+    if (passwordData.new_password === passwordData.old_password) {
+      setMessage({ type: 'error', text: 'New password cannot be the same as your current password.' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await api.post('/profile/change-password/', passwordData);
+      setMessage({ type: 'success', text: 'Password changed successfully!' });
+      setPasswordData({
+        old_password: '',
+        new_password: '',
+        confirm_password: ''
+      });
+    } catch (err: any) {
+      setMessage({ 
+        type: 'error', 
+        text: err.response?.data?.message || err.response?.data?.error || err.response?.data?.detail || 'Failed to change password.' 
       });
     } finally {
       setIsLoading(false);
@@ -243,6 +300,16 @@ const ProfileSettings = () => {
                 }`}
               >
                 Manage Skills
+              </button>
+              <button
+                onClick={() => setActiveTab('security')}
+                className={`flex-1 md:flex-none text-left px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                  activeTab === 'security'
+                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-md'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                }`}
+              >
+                Account Security
               </button>
             </nav>
           </div>
@@ -351,7 +418,8 @@ const ProfileSettings = () => {
                   <Button type="submit" isLoading={isLoading}>Save Profile</Button>
                 </div>
               </form>
-            ) : !isEditingSkills ? (
+            ) : activeTab === 'skills' ? (
+              !isEditingSkills ? (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Skill Summary</h2>
@@ -587,15 +655,92 @@ const ProfileSettings = () => {
                   </button>
                 </div>
               </form>
+              )
+            ) : (
+              <div className="space-y-10">
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <Shield className="text-zinc-900 dark:text-zinc-50" size={24} />
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">Change Password</h2>
+                  </div>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8">Update your password to keep your account secure.</p>
+                  
+                  <form onSubmit={handleSubmitChangePassword} className="max-w-md space-y-5">
+                    <Input
+                      label="Current Password"
+                      type="password"
+                      name="old_password"
+                      placeholder="••••••••"
+                      value={passwordData.old_password}
+                      onChange={handlePasswordChange}
+                      required
+                    />
+                    <Input
+                      label="New Password"
+                      type="password"
+                      name="new_password"
+                      placeholder="••••••••"
+                      value={passwordData.new_password}
+                      onChange={handlePasswordChange}
+                      required
+                    />
+                    <Input
+                      label="Confirm New Password"
+                      type="password"
+                      name="confirm_password"
+                      placeholder="••••••••"
+                      value={passwordData.confirm_password}
+                      onChange={handlePasswordChange}
+                      required
+                    />
+
+                    <div className="pt-2 flex flex-col gap-4">
+                      <Button type="submit" isLoading={isLoading} className="w-full">
+                        Update Password
+                      </Button>
+                      
+                      <button 
+                        type="button" 
+                        onClick={() => setIsForgotModalOpen(true)}
+                        className="text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Key size={14} />
+                        Forgot Password? Reset via OTP
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="pt-8 border-t border-zinc-100 dark:border-zinc-800">
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50 mb-4 flex items-center gap-2">
+                    <Fingerprint size={20} className="text-zinc-400" />
+                    Security Preferences
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Two-Factor Authentication</p>
+                        <p className="text-xs text-zinc-500">Add an extra layer of security to your account.</p>
+                      </div>
+                      <span className="px-3 py-1 bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400 text-[10px] font-bold uppercase rounded-full">Coming Soon</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
 
             {message.text && (
-              <div className={`mt-6 p-3 rounded-xl text-sm font-medium ${message.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+              <div className={`mt-6 p-3 rounded-xl text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${message.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-100 dark:border-green-900/50' : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-100 dark:border-red-900/50'}`}>
                 {message.text}
               </div>
             )}
           </div>
         </div>
+        
+        <ForgotPasswordModal 
+          isOpen={isForgotModalOpen} 
+          onClose={() => setIsForgotModalOpen(false)} 
+        />
       </div>
     </ProtectedRoute>
   );

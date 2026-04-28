@@ -47,7 +47,7 @@ const Register = () => {
       await api.post('/users/register/', payload);
       navigate('/login');
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(err.response?.data?.message || err.response?.data?.error || err.response?.data?.detail || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

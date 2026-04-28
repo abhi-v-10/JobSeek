@@ -54,7 +54,8 @@ INSTALLED_APPS = [
     'channels',
     'users',
     'jobs',
-    'messaging'
+    'messaging',
+    'ai_chat',
 ]
 
 ASGI_APPLICATION = 'config.asgi.application'
@@ -79,7 +80,7 @@ MIDDLEWARE = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "users.auth.KeyRotationJWTAuthentication",
     ),
 }
 
@@ -168,9 +169,6 @@ DATABASES = {
 AUTH_USER_MODEL = "users.User"
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
     },

@@ -18,13 +18,24 @@ from django.contrib import admin
 from django.urls import include, path
 from django.conf import settings
 from django.conf.urls.static import static
+from users.views import (
+    ChangePasswordAPIView,
+    ForgotPasswordSendOTPAPIView,
+    ResetPasswordAPIView,
+    VerifyOTPAPIView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("accounts/", include("allauth.urls")),
+    path("api/auth/forgot-password/send-otp/", ForgotPasswordSendOTPAPIView.as_view(), name="forgot-password-send-otp"),
+    path("api/auth/forgot-password/verify-otp/", VerifyOTPAPIView.as_view(), name="forgot-password-verify-otp"),
+    path("api/auth/forgot-password/reset/", ResetPasswordAPIView.as_view(), name="forgot-password-reset"),
+    path("api/profile/change-password/", ChangePasswordAPIView.as_view(), name="profile-change-password"),
     path("api/users/", include("users.urls", namespace="users")),
     path("api/jobs/", include("jobs.urls", namespace="jobs")),
+    path("api/chat/", include("ai_chat.urls", namespace="chat")),
     path("api/messages/", include("messaging.urls", namespace="messaging")),
-    path("accounts/", include("allauth.urls")),
 ]
 
 if settings.DEBUG:

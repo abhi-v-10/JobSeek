@@ -4,6 +4,7 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import GoogleButton from '../components/auth/GoogleButton';
 import GithubButton from '../components/auth/GithubButton';
+import ForgotPasswordModal from '../components/auth/ForgotPasswordModal';
 import api from '../lib/axios';
 
 const Login = () => {
@@ -11,6 +12,7 @@ const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,7 +39,7 @@ const Login = () => {
         setError('Login failed. No token received.');
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid email or password.');
+      setError(err.response?.data?.message || err.response?.data?.error || err.response?.data?.detail || 'Invalid email or password.');
     } finally {
       setIsLoading(false);
     }
@@ -61,15 +63,27 @@ const Login = () => {
               onChange={handleChange}
               required
             />
-            <Input
-              label="Password"
-              type="password"
-              name="password"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
+            
+            <div className="space-y-1">
+              <Input
+                label="Password"
+                type="password"
+                name="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+              <div className="flex justify-end">
+                <button 
+                  type="button" 
+                  onClick={() => setIsForgotModalOpen(true)}
+                  className="text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            </div>
 
             {error && <p className="text-sm text-red-500 text-center">{error}</p>}
 
@@ -98,6 +112,11 @@ const Login = () => {
             </Link>
           </p>
         </div>
+
+        <ForgotPasswordModal 
+          isOpen={isForgotModalOpen} 
+          onClose={() => setIsForgotModalOpen(false)} 
+        />
       </div>
     );
   };

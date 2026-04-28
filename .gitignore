@@ -36,6 +36,7 @@ __pycache__/
 
 # Virtual environments
 .venv/
+.aivenv/
 venv/
 env/
 ENV/
@@ -84,6 +85,7 @@ coverage/
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+start-seekbot-ai.ps1
 
 # --- Misc ---
 tmp/
