@@ -335,3 +335,41 @@ class JobDashboardAPIView(APIView):
             "saved_jobs_count": SavedJob.objects.filter(user=request.user).count(),
         }
         return Response(data, status=status.HTTP_200_OK)
+
+
+# ── Job Search API ─────────────────────────────────────────────────────────────
+
+from .services.job_search_service import search_jobs
+from .serializers import JobSearchSerializer
+
+class JobSearchAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        filters = {
+            "role": request.query_params.get("role"),
+            "skills": request.query_params.get("skills"),
+            "location": request.query_params.get("location"),
+            "remote": request.query_params.get("remote"),
+            "salary_min": request.query_params.get("salary_min"),
+            "salary_max": request.query_params.get("salary_max"),
+        }
+
+        # Filter out None values
+        filters = {k: v for k, v in filters.items() if v is not None}
+
+        queryset = search_jobs(filters)
+        
+        # We can optimize the queryset since we only need certain fields
+        queryset = queryset.only(
+            "id", "position", "work", "company", "location", 
+            "work_mode", "job_type", "required_experience_fields", "created_at"
+        )
+        
+        serializer = JobSearchSerializer(queryset, many=True)
+        
+        return Response({
+            "success": True,
+            "count": len(serializer.data),
+            "results": serializer.data
+        }, status=status.HTTP_200_OK)

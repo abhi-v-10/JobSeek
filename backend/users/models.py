@@ -5,9 +5,6 @@ from django.utils import timezone
 
 
 class User(AbstractUser):
-    # Keep canonical display name in Profile.full_name only.
-    first_name = None
-    last_name = None
     groups = models.ManyToManyField(
         Group,
         blank=True,

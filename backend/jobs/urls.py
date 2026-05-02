@@ -8,6 +8,7 @@ from .views import (
     JobDetailAPIView,
     JobListCreateAPIView,
     JobUpdateAPIView,
+    JobSearchAPIView,
     MarkViewedJobAPIView,
     MyJobsAPIView,
     SaveJobAPIView,
@@ -17,6 +18,7 @@ app_name = "jobs"
 
 urlpatterns = [
     path("", JobListCreateAPIView.as_view(), name="job-list-create"),
+    path("search/", JobSearchAPIView.as_view(), name="job-search"),
     path("dashboard/", JobDashboardAPIView.as_view(), name="job-dashboard"),
     path("my-jobs/", MyJobsAPIView.as_view(), name="my-jobs"),
     path("<int:id>/", JobDetailAPIView.as_view(), name="job-detail"),

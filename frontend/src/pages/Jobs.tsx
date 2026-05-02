@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ProtectedRoute from '../components/auth/ProtectedRoute';
 import { jobsService } from '../services/jobs';
 import type { Job } from '../services/jobs';
 import { MapPin, Building, Eye, Briefcase, Bookmark, BookmarkCheck, UserCheck, AlertCircle, Search, Filter } from 'lucide-react';
@@ -17,6 +16,7 @@ const WORK_MODE_LABELS: Record<string, { label: string; color: string }> = {
 
 const Jobs = () => {
   const navigate = useNavigate();
+  const isLoggedIn = !!localStorage.getItem('access_token');
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,6 +44,10 @@ const Jobs = () => {
 
   const handleToggleSave = async (e: React.MouseEvent, job: Job) => {
     e.stopPropagation();
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
     const wasSaved = !!job.is_saved;
     setJobs(prev => prev.map(j => j.id === job.id ? { ...j, is_saved: !wasSaved } : j));
     try {
@@ -58,6 +62,10 @@ const Jobs = () => {
     e.stopPropagation();
     if (job.is_own_job || job.is_applied) return;
     
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
     setEligibilityMsg(null);
     try {
       const eligibility = await jobsService.getApplyEligibility(job.id);
@@ -121,7 +129,7 @@ const Jobs = () => {
   });
 
   return (
-    <ProtectedRoute>
+    <>
       <div className="flex-1 flex flex-col p-4 sm:p-6 max-w-7xl mx-auto w-full">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">Available Jobs</h1>
@@ -363,7 +371,7 @@ const Jobs = () => {
         isSubmitting={isApplying}
         jobTitle={selectedJob ? jobTitle(selectedJob) : ''}
       />
-    </ProtectedRoute>
+    </>
   );
 };
 

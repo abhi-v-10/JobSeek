@@ -134,3 +134,29 @@ class SavedJobSerializer(serializers.ModelSerializer):
         model = SavedJob
         fields = ["id", "job", "created_at"]
         read_only_fields = fields
+
+
+class JobSearchSerializer(serializers.ModelSerializer):
+    title = serializers.SerializerMethodField()
+    company_name = serializers.CharField(source="company")
+    is_remote = serializers.SerializerMethodField()
+    skills = serializers.CharField(source="required_experience_fields")
+
+    def get_title(self, obj):
+        return obj.position or obj.work
+
+    def get_is_remote(self, obj):
+        return obj.work_mode == "remote"
+
+    class Meta:
+        model = Job
+        fields = [
+            "id",
+            "title",
+            "company_name",
+            "location",
+            "is_remote",
+            "job_type",
+            "skills",
+            "created_at"
+        ]

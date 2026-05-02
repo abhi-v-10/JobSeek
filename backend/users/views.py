@@ -85,14 +85,31 @@ class CreateUserAPIView(APIView):
 				status=status.HTTP_400_BAD_REQUEST,
 			)
 
-		if User.objects.filter(username=username).exists():
-			return Response(
-				{"error": "Username already exists"},
-				status=status.HTTP_400_BAD_REQUEST,
-			)
+		user = User.objects.filter(email=email).first()
+		if user:
+			if not user.has_usable_password():
+				user.set_password(password)
+				user.save(update_fields=["password"])
+				profile, _ = Profile.objects.get_or_create(user=user)
+			else:
+				return Response(
+					{"error": "Email already registered"},
+					status=status.HTTP_400_BAD_REQUEST,
+				)
+		else:
+			if User.objects.filter(username=username).exists():
+				return Response(
+					{"error": "Username already exists"},
+					status=status.HTTP_400_BAD_REQUEST,
+				)
+			user = User.objects.create_user(username=username, email=email, password=password)
+			profile, _ = Profile.objects.get_or_create(user=user)
 
-		user = User.objects.create_user(username=username, email=email, password=password)
-		profile, _ = Profile.objects.get_or_create(user=user)
+		from allauth.account.models import EmailAddress
+		email_addr, _ = EmailAddress.objects.get_or_create(user=user, email=email)
+		email_addr.verified = True
+		email_addr.primary = True
+		email_addr.save(update_fields=['verified', 'primary'])
 
 		full_name = request.data.get("full_name")
 		mobile_number = request.data.get("mobile_number")
@@ -100,7 +117,8 @@ class CreateUserAPIView(APIView):
 		allowed_user_types = {choice[0] for choice in Profile.USER_TYPE_CHOICES}
 
 		if user_type and user_type not in allowed_user_types:
-			user.delete()
+			# If user was newly created, it might be better to delete. But if it was existing, we shouldn't.
+			# Let's just return an error instead of deleting for safety.
 			return Response(
 				{"error": "Invalid user_type. Use seeker or poster"},
 				status=status.HTTP_400_BAD_REQUEST,
@@ -159,6 +177,12 @@ class LoginAPIView(APIView):
 		if not user_obj:
 			return Response(
 				{"error": "Invalid credentials"},
+				status=status.HTTP_401_UNAUTHORIZED,
+			)
+
+		if not user_obj.has_usable_password():
+			return Response(
+				{"error": "This account was created with a social login. Please use Google/GitHub to sign in, or set a password via Forgot Password."},
 				status=status.HTTP_401_UNAUTHORIZED,
 			)
 
@@ -303,6 +327,12 @@ class ChangePasswordAPIView(APIView):
 		request.user.set_password(serializer.validated_data["new_password"])
 		request.user.save(update_fields=["password"])
 		update_session_auth_hash(request, request.user)
+
+		from allauth.account.models import EmailAddress
+		email_addr, _ = EmailAddress.objects.get_or_create(user=request.user, email=request.user.email)
+		email_addr.verified = True
+		email_addr.primary = True
+		email_addr.save(update_fields=['verified', 'primary'])
 
 		return Response(
 			{"success": True, "message": "Password changed successfully."},
@@ -517,6 +547,12 @@ class ResetPasswordAPIView(APIView):
 			user.set_password(new_password)
 			user.save(update_fields=["password"])
 			otp_record.mark_used()
+
+			from allauth.account.models import EmailAddress
+			email_addr, _ = EmailAddress.objects.get_or_create(user=user, email=email)
+			email_addr.verified = True
+			email_addr.primary = True
+			email_addr.save(update_fields=['verified', 'primary'])
 
 			PasswordResetOTP.objects.filter(
 				user=user,

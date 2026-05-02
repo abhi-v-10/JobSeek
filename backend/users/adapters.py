@@ -54,7 +54,8 @@ class SocialAccountAdapter(DefaultSocialAccountAdapter):
         if not user.is_authenticated:
             return 'http://localhost:5173/login?error=oauth_failed'
 
-        refresh = RefreshToken.for_user(user)
+        from users.auth import KeyRotationRefreshToken
+        refresh = KeyRotationRefreshToken.for_user(user)
         access = str(refresh.access_token)
         ref = str(refresh)
 
@@ -80,7 +81,8 @@ class AccountAdapter(DefaultAccountAdapter):
         if not user.is_authenticated:
             return 'http://localhost:5173/login?error=oauth_failed'
 
-        refresh = RefreshToken.for_user(user)
+        from users.auth import KeyRotationRefreshToken
+        refresh = KeyRotationRefreshToken.for_user(user)
         access = str(refresh.access_token)
         ref = str(refresh)
 

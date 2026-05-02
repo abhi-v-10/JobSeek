@@ -1,7 +1,6 @@
 // Job Details Page
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import ProtectedRoute from '../components/auth/ProtectedRoute';
 import { jobsService } from '../services/jobs';
 import type { Job } from '../services/jobs';
 import { MapPin, Building, Eye, Briefcase, Bookmark, BookmarkCheck, Monitor, Home, Layers, UserCheck, Clock, DollarSign, AlertCircle } from 'lucide-react';
@@ -16,6 +15,7 @@ const WORK_MODE_LABELS: Record<string, { label: string; icon: React.ReactNode; c
 const JobDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isLoggedIn = !!localStorage.getItem('access_token');
 
   const [job, setJob] = useState<Job | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,6 +47,10 @@ const JobDetails = () => {
   const handleApplyClick = async () => {
     if (!job || !id || job.is_own_job || job.is_applied) return;
     
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
     setEligibilityMsg(null);
     try {
       const eligibility = await jobsService.getApplyEligibility(id);
@@ -79,6 +83,10 @@ const JobDetails = () => {
 
   const handleToggleSave = async () => {
     if (!job || !id) return;
+    if (!isLoggedIn) {
+      navigate('/login');
+      return;
+    }
     const wasSaved = !!job.is_saved;
     setJob(prev => prev ? { ...prev, is_saved: !wasSaved } : null);
     setIsSaving(true);
@@ -94,17 +102,17 @@ const JobDetails = () => {
 
   if (isLoading) {
     return (
-      <ProtectedRoute>
+      <>
         <div className="flex-1 flex items-center justify-center">
           <p className="text-zinc-400">Loading job details…</p>
         </div>
-      </ProtectedRoute>
+      </>
     );
   }
 
   if (error || !job) {
     return (
-      <ProtectedRoute>
+      <>
         <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <p className="text-red-500">{error || 'Job not found'}</p>
           <button
@@ -114,7 +122,7 @@ const JobDetails = () => {
             Back to Jobs
           </button>
         </div>
-      </ProtectedRoute>
+      </>
     );
   }
 
@@ -123,7 +131,7 @@ const JobDetails = () => {
   const jobTitle = job.position || job.work || '(Untitled)';
 
   return (
-    <ProtectedRoute>
+    <>
       <div className="flex-1 flex flex-col p-6 max-w-4xl mx-auto w-full">
         <button
           onClick={() => navigate('/jobs')}
@@ -334,7 +342,7 @@ const JobDetails = () => {
         isSubmitting={isApplying}
         jobTitle={jobTitle}
       />
-    </ProtectedRoute>
+    </>
   );
 };
 

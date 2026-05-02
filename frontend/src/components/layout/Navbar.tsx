@@ -56,9 +56,10 @@ const Navbar = () => {
   ];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const isLanding = location.pathname === '/';
 
   return (
-    <nav className="border-b border-border bg-background sticky top-0 z-50">
+    <nav className={`border-b sticky top-0 z-50 transition-colors ${isLanding ? 'dark bg-zinc-950 border-zinc-800' : 'border-border bg-background'}`}>
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
