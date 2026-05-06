@@ -1,9 +1,13 @@
 from django.db.models import Q
 from jobs.models import Job
 
+
 def search_jobs(filters):
     # Only return open jobs by default
     queryset = Job.objects.filter(status="open")
+
+    if filters.get("job_type"):
+        queryset = queryset.filter(job_type=filters["job_type"])
 
     if filters.get("role"):
         role_query = filters["role"]
@@ -12,7 +16,9 @@ def search_jobs(filters):
         )
 
     if filters.get("skills"):
-        queryset = queryset.filter(required_experience_fields__icontains=filters["skills"])
+        queryset = queryset.filter(
+            required_experience_fields__icontains=filters["skills"]
+        )
 
     if filters.get("location"):
         queryset = queryset.filter(location__icontains=filters["location"])
@@ -26,7 +32,7 @@ def search_jobs(filters):
     # Salary filtering: job salary range overlaps with requested range
     salary_min_param = filters.get("salary_min")
     salary_max_param = filters.get("salary_max")
-    
+
     if salary_min_param is not None or salary_max_param is not None:
         try:
             if salary_min_param is not None:
@@ -34,8 +40,8 @@ def search_jobs(filters):
                 # Job's max salary must be >= requested min salary
                 # Or job has no max salary but min salary >= requested min salary
                 queryset = queryset.filter(
-                    Q(salary_max__gte=salary_min) | 
-                    Q(salary_max__isnull=True, salary_min__gte=salary_min)
+                    Q(salary_max__gte=salary_min)
+                    | Q(salary_max__isnull=True, salary_min__gte=salary_min)
                 )
 
             if salary_max_param is not None:
@@ -43,8 +49,7 @@ def search_jobs(filters):
                 # Job's min salary must be <= requested max salary
                 # Or job has no min salary
                 queryset = queryset.filter(
-                    Q(salary_min__lte=salary_max) |
-                    Q(salary_min__isnull=True)
+                    Q(salary_min__lte=salary_max) | Q(salary_min__isnull=True)
                 )
         except (ValueError, TypeError):
             # Ignore invalid salary format

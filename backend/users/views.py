@@ -648,3 +648,43 @@ class DashboardAPIView(APIView):
 				"total_messages": 0
 			}
 		}, status=status.HTTP_200_OK)
+
+
+class ResumeAPIView(APIView):
+	"""
+	Secure endpoint to retrieve the current user's parsed resume.
+	Used by FastAPI SeekBot to fetch resume text for AI analysis.
+
+	GET /api/users/me/resume/
+	"""
+	permission_classes = [permissions.IsAuthenticated]
+
+	def get(self, request):
+		profile, _ = Profile.objects.get_or_create(user=request.user)
+
+		if not profile.resume:
+			return Response(
+				{
+					"success": False,
+					"message": "No resume uploaded.",
+				},
+				status=status.HTTP_404_NOT_FOUND,
+			)
+
+		# Build resume URL without exposing filesystem paths
+		resume_url = request.build_absolute_uri(profile.resume.url) if profile.resume else None
+
+		return Response(
+			{
+				"success": True,
+				"resume_uploaded": True,
+				"resume_text": profile.resume_text or "",
+				"resume_url": resume_url,
+				"resume_last_parsed_at": (
+					profile.resume_last_parsed_at.isoformat()
+					if profile.resume_last_parsed_at
+					else None
+				),
+			},
+			status=status.HTTP_200_OK,
+		)

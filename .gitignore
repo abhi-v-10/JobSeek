@@ -2,6 +2,7 @@
 .vscode/
 .idea/
 *.code-workspace
+.zed/
 
 # --- OS files ---
 .DS_Store
@@ -85,7 +86,8 @@ coverage/
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
-start-seekbot-ai.ps1
+start-dev.bat
+
 
 # --- Misc ---
 tmp/

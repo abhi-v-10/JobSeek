@@ -31,7 +31,7 @@ FORMAT:
 """
 
 
-def ask_ai(current_message: str, history=None):
+def ask_ai(current_message: str, history=None, file_context: str = None, image_base64: str = None):
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT}
     ]
@@ -43,16 +43,45 @@ def ask_ai(current_message: str, history=None):
                 "content": msg["content"]
             })
 
+    user_content = []
+    if current_message:
+        user_content.append({"type": "text", "text": current_message})
+    
+    if file_context:
+        user_content.append({"type": "text", "text": f"\n\n[DOCUMENT CONTEXT]:\n{file_context}"})
+    
+    if image_base64:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
+        })
+
     messages.append({
         "role": "user",
-        "content": current_message
+        "content": user_content if (image_base64 or file_context) else current_message
     })
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=messages,
         temperature=0.4,
-        max_tokens=140
+        max_tokens=1000
     )
 
     return response.choices[0].message.content.strip()
+
+def generate_chat_title(first_message: str):
+    """Generate a concise 2-3 word title for a chat session."""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Generate a concise 2-3 word title for a chat based on the user message. No quotes, no periods."},
+                {"role": "user", "content": first_message}
+            ],
+            temperature=0.5,
+            max_tokens=10
+        )
+        return response.choices[0].message.content.strip().replace('"', '')
+    except:
+        return first_message[:20] + "..."

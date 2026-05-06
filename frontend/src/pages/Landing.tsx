@@ -1,10 +1,50 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import LiquidEther from "../components/LiquidEther";
 import TextType from "../components/TextType";
 import { PulsatingButton } from "../components/ui/pulsating-button";
+import CountUp from "../components/ui/CountUp";
 
-// ─── SVG Icons ───────────────────────────────────────────────────────────────
+// ─── Scroll-reveal hook ───────────────────────────────────────────────────────
+// Fires once when the element enters the viewport; never resets.
+
+function useInView(threshold = 0.2) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setInView(true);
+      },
+      { threshold, rootMargin: "0px 0px -80px 0px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return { ref, inView };
+}
+
+// ─── Animation helpers ────────────────────────────────────────────────────────
+
+// Use specific properties so these don't bleed into card hover transitions
+const fadeUp = (inView: boolean, delay = 0) => ({
+  className: `transition-[opacity,transform] duration-900 ease-out ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`,
+  style: { transitionDelay: `${delay}ms` },
+});
+
+const fadeLeft = (inView: boolean, delay = 0) => ({
+  className: `transition-[opacity,transform] duration-900 ease-out ${inView ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-8"}`,
+  style: { transitionDelay: `${delay}ms` },
+});
+
+const fadeRight = (inView: boolean, delay = 0) => ({
+  className: `transition-[opacity,transform] duration-900 ease-out ${inView ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8"}`,
+  style: { transitionDelay: `${delay}ms` },
+});
+
+// ─── SVG Icons ────────────────────────────────────────────────────────────────
 
 const SparklesIcon = ({ className = "w-6 h-6" }) => (
   <svg
@@ -21,7 +61,6 @@ const SparklesIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const DocumentTextIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -37,7 +76,6 @@ const DocumentTextIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const TrendingUpIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -53,7 +91,6 @@ const TrendingUpIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const MagnifyingGlassIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -69,7 +106,6 @@ const MagnifyingGlassIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const TargetIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -85,7 +121,6 @@ const TargetIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const LightBulbIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -101,7 +136,6 @@ const LightBulbIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const MapIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -117,7 +151,6 @@ const MapIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const CodeBracketIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -133,7 +166,6 @@ const CodeBracketIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const UsersIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -149,7 +181,6 @@ const UsersIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const BriefcaseIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -165,7 +196,6 @@ const BriefcaseIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const ChatBubbleIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -181,7 +211,6 @@ const ChatBubbleIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const BuildingIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -197,7 +226,6 @@ const BuildingIcon = ({ className = "w-6 h-6" }) => (
     />
   </svg>
 );
-
 const CheckIcon = ({ className = "w-5 h-5" }) => (
   <svg
     className={className}
@@ -213,7 +241,6 @@ const CheckIcon = ({ className = "w-5 h-5" }) => (
     />
   </svg>
 );
-
 const XMarkIcon = ({ className = "w-5 h-5" }) => (
   <svg
     className={className}
@@ -229,7 +256,6 @@ const XMarkIcon = ({ className = "w-5 h-5" }) => (
     />
   </svg>
 );
-
 const ArrowRightIcon = ({ className = "w-5 h-5" }) => (
   <svg
     className={className}
@@ -245,7 +271,6 @@ const ArrowRightIcon = ({ className = "w-5 h-5" }) => (
     />
   </svg>
 );
-
 const ChevronDownIcon = ({ className = "w-6 h-6" }) => (
   <svg
     className={className}
@@ -296,8 +321,7 @@ const SectionTitle = ({
   </div>
 );
 
-// ─── Section 1: Hero ─────────────────────────────────────────────────────────
-// No overlay here — LiquidEther is fully visible at hero strength
+// ─── Section 1: Hero ──────────────────────────────────────────────────────────
 
 const HeroSection = ({ onGetStarted }: { onGetStarted: () => void }) => (
   <section className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center overflow-hidden">
@@ -311,17 +335,14 @@ const HeroSection = ({ onGetStarted }: { onGetStarted: () => void }) => (
         showCursor={true}
         cursorCharacter="|"
       />
-
       <h2 className="text-2xl md:text-4xl font-bold text-white/90 leading-snug">
         Find Jobs. Build Careers. Grow Smarter.
       </h2>
-
       <p className="text-lg md:text-xl text-zinc-300 max-w-2xl mx-auto leading-relaxed">
         Not just a job portal — an AI-powered career platform. Upload your
         resume, get personalized job matches, detect skill gaps, and grow with
         SeekBot AI as your dedicated career agent.
       </p>
-
       <div className="pt-6 flex flex-col sm:flex-row gap-4 justify-center items-center pointer-events-auto">
         <div className="w-full sm:w-auto sm:min-w-[200px]">
           <PulsatingButton
@@ -342,7 +363,6 @@ const HeroSection = ({ onGetStarted }: { onGetStarted: () => void }) => (
         </a>
       </div>
     </div>
-
     <a
       href="#what-is-jobseek"
       className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 text-zinc-500 hover:text-zinc-300 transition-colors animate-bounce"
@@ -352,7 +372,7 @@ const HeroSection = ({ onGetStarted }: { onGetStarted: () => void }) => (
   </section>
 );
 
-// ─── Section 2: What Is JobSeek ──────────────────────────────────────────────
+// ─── Section 2: What Is JobSeek ───────────────────────────────────────────────
 
 const comparisonPoints = [
   {
@@ -403,84 +423,101 @@ const whatCards = [
   },
 ];
 
-const WhatIsJobSeekSection = () => (
-  <section id="what-is-jobseek" className="relative py-24 px-6">
-    {/* Semi-transparent overlay — passes mouse events through to LiquidEther */}
-    <div className="absolute inset-0 bg-zinc-950/80 pointer-events-none" />
-
-    <div className="relative z-10 max-w-7xl mx-auto">
-      <SectionTitle
-        label="What is JobSeek?"
-        title="Not Just Another Job Portal"
-        subtitle="Traditional job portals let you search and apply. JobSeek understands you — your skills, goals, and gaps — and builds your entire career path around them."
-      />
-
-      {/* Comparison strip */}
-      <div className="grid md:grid-cols-2 gap-px bg-zinc-800/50 rounded-2xl overflow-hidden mb-16 border border-zinc-700/40">
-        <div className="bg-zinc-950/80 backdrop-blur-sm p-6">
-          <h3 className="text-zinc-500 font-semibold text-sm uppercase tracking-widest mb-6">
-            Traditional Portals
-          </h3>
-          <div className="space-y-4">
-            {comparisonPoints.map((p) => (
-              <div key={p.label} className="flex items-start gap-3">
-                <span className="mt-0.5 text-zinc-600 shrink-0">
-                  <XMarkIcon className="w-4 h-4" />
-                </span>
-                <div>
-                  <span className="text-zinc-500 text-sm font-medium">
-                    {p.label}:{" "}
-                  </span>
-                  <span className="text-zinc-600 text-sm">{p.traditional}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+const WhatIsJobSeekSection = () => {
+  const { ref, inView } = useInView(0.1);
+  return (
+    <section id="what-is-jobseek" className="relative py-24 px-6">
+      <div ref={ref} className="max-w-7xl mx-auto">
+        <div {...fadeUp(inView)}>
+          <SectionTitle
+            label="What is JobSeek?"
+            title="Not Just Another Job Portal"
+            subtitle="Traditional job portals let you search and apply. JobSeek understands you — your skills, goals, and gaps — and builds your entire career path around them."
+          />
         </div>
-        <div className="bg-zinc-900/70 backdrop-blur-sm p-6">
-          <h3 className="text-indigo-400 font-semibold text-sm uppercase tracking-widest mb-6">
-            JobSeek
-          </h3>
-          <div className="space-y-4">
-            {comparisonPoints.map((p) => (
-              <div key={p.label} className="flex items-start gap-3">
-                <span className="mt-0.5 text-indigo-400 shrink-0">
-                  <CheckIcon className="w-4 h-4" />
-                </span>
-                <div>
-                  <span className="text-zinc-300 text-sm font-medium">
-                    {p.label}:{" "}
-                  </span>
-                  <span className="text-zinc-300 text-sm">{p.jobseek}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* Feature cards */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {whatCards.map((card) => (
-          <div
-            key={card.title}
-            className="bg-zinc-900/75 backdrop-blur-sm border border-zinc-700/50 rounded-xl p-6 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-900/30 hover:-translate-y-1 transition-all duration-300"
-          >
-            <div className="w-12 h-12 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400 mb-5">
-              {card.icon}
-            </div>
-            <h3 className="text-white font-semibold text-lg mb-2">
-              {card.title}
+        {/* Comparison strip */}
+        <div className="grid md:grid-cols-2 rounded-2xl overflow-hidden mb-16 border border-zinc-800/60">
+          {/* Traditional column */}
+          <div className="bg-zinc-950/60 p-8 border-r border-zinc-800/60">
+            <h3 className="text-zinc-500 font-semibold text-xs uppercase tracking-widest mb-7">
+              Traditional Portals
             </h3>
-            <p className="text-zinc-400 text-sm leading-relaxed">
-              {card.description}
-            </p>
+            <div className="space-y-5">
+              {comparisonPoints.map((p, i) => (
+                <div
+                  key={p.label}
+                  className={`flex items-start gap-3 transition-all duration-500 ease-out ${inView ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-6"}`}
+                  style={{ transitionDelay: `${i * 90}ms` }}
+                >
+                  <span className="mt-0.5 text-zinc-700 shrink-0">
+                    <XMarkIcon className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <span className="text-zinc-500 text-sm font-medium">
+                      {p.label}:{" "}
+                    </span>
+                    <span className="text-zinc-600 text-sm">
+                      {p.traditional}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
+          {/* JobSeek column */}
+          <div className="bg-indigo-950/20 p-8">
+            <h3 className="text-indigo-400 font-semibold text-xs uppercase tracking-widest mb-7">
+              JobSeek
+            </h3>
+            <div className="space-y-5">
+              {comparisonPoints.map((p, i) => (
+                <div
+                  key={p.label}
+                  className={`flex items-start gap-3 transition-all duration-500 ease-out ${inView ? "opacity-100 translate-x-0" : "opacity-0 translate-x-6"}`}
+                  style={{ transitionDelay: `${i * 90 + 200}ms` }}
+                >
+                  <span className="mt-0.5 text-indigo-400 shrink-0">
+                    <CheckIcon className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <span className="text-zinc-200 text-sm font-medium">
+                      {p.label}:{" "}
+                    </span>
+                    <span className="text-zinc-300 text-sm">{p.jobseek}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Feature cards */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {whatCards.map((card, i) => (
+            <div
+              key={card.title}
+              className={fadeUp(inView, i * 100 + 500).className}
+              style={fadeUp(inView, i * 100 + 500).style}
+            >
+              <div className="bg-zinc-900/80 border border-zinc-800/60 rounded-xl p-6 h-full hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-900/20 transition-[border-color,box-shadow] duration-150">
+                <div className="w-12 h-12 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400 mb-5">
+                  {card.icon}
+                </div>
+                <h3 className="text-white font-semibold text-lg mb-2">
+                  {card.title}
+                </h3>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  {card.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // ─── Section 3: SeekBot ───────────────────────────────────────────────────────
 
@@ -508,113 +545,133 @@ const seekbotCapabilities = [
 ];
 
 const exampleQueries = [
-  "I want a remote frontend internship",
-  "Find Python jobs under 8 LPA",
-  "How do I become a full stack developer?",
-  "What skills do I need for a Data Analyst role?",
+  {
+    user: "I want a remote frontend internship",
+    bot: "Found 12 remote frontend internships matching your profile. Top match: 88% — React Developer Intern at TechNova.",
+  },
+  {
+    user: "Find Python jobs under 8 LPA",
+    bot: "Here are 8 Python developer roles under 8 LPA. Your profile matches 5 of them with 70%+ score.",
+  },
+  {
+    user: "How do I become a full stack developer?",
+    bot: "Here's your 6-month Full Stack roadmap: HTML → React → Node.js → Databases → APIs → Deployment.",
+  },
+  {
+    user: "What skills do I need for a Data Analyst?",
+    bot: "You're missing SQL, Excel, and Power BI. I've added a learning path to your dashboard.",
+  },
 ];
 
-const SeekBotSection = () => (
-  <section id="seekbot" className="relative py-24 px-6">
-    <div className="absolute inset-0 bg-zinc-900/65 pointer-events-none" />
+const SeekBotSection = () => {
+  const { ref, inView } = useInView(0.1);
+  return (
+    <section id="seekbot" className="relative py-24 px-6">
+      <div ref={ref} className="max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          {/* Left: content */}
+          <div {...fadeLeft(inView)}>
+            <SectionLabel>Powered by AI</SectionLabel>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-5 leading-tight">
+              Meet SeekBot —{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
+                Your AI Career Agent
+              </span>
+            </h2>
+            <p className="text-zinc-400 text-lg mb-10 leading-relaxed">
+              SeekBot is not just a chatbot. It's a smart, action-oriented
+              career agent that understands your profile, analyzes your resume,
+              recommends jobs, and guides your growth — all through natural
+              conversation.
+            </p>
+            <div className="space-y-5">
+              {seekbotCapabilities.map((cap, i) => (
+                <div
+                  key={cap.label}
+                  className={`flex items-start gap-4 transition-all duration-500 ease-out ${inView ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4"}`}
+                  style={{ transitionDelay: `${i * 80 + 200}ms` }}
+                >
+                  <div className="w-10 h-10 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400 shrink-0 mt-0.5">
+                    {cap.icon}
+                  </div>
+                  <div>
+                    <h4 className="text-white font-semibold text-sm mb-1">
+                      {cap.label}
+                    </h4>
+                    <p className="text-zinc-400 text-sm leading-relaxed">
+                      {cap.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-    <div className="relative z-10 max-w-7xl mx-auto">
-      <div className="grid lg:grid-cols-2 gap-16 items-center">
-        {/* Left: Content */}
-        <div>
-          <SectionLabel>Powered by AI</SectionLabel>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-5 leading-tight">
-            Meet SeekBot —{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
-              Your AI Career Agent
-            </span>
-          </h2>
-          <p className="text-zinc-400 text-lg mb-10 leading-relaxed">
-            SeekBot is not just a chatbot. It's a smart, action-oriented career
-            agent that understands your profile, analyzes your resume,
-            recommends jobs, and guides your growth — all through natural
-            conversation.
-          </p>
-
-          <div className="space-y-5">
-            {seekbotCapabilities.map((cap) => (
-              <div key={cap.label} className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-indigo-500/10 rounded-lg flex items-center justify-center text-indigo-400 shrink-0 mt-0.5">
-                  {cap.icon}
+          {/* Right: chat demo — hover zoom + neon glow + macOS window buttons */}
+          <div
+            className={`transition-[opacity,transform] duration-900 ease-out ${inView ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8"}`}
+            style={{ transitionDelay: "150ms" }}
+          >
+            <div className="group bg-zinc-950/90 border border-zinc-800/70 rounded-2xl overflow-hidden shadow-2xl shadow-black/50 transition-[transform,border-color,box-shadow] duration-300 ease-out cursor-default hover:scale-[1.025] hover:border-indigo-400/60 hover:shadow-[0_0_0_1px_rgba(129,140,248,0.2),0_0_40px_rgba(99,102,241,0.2),0_0_80px_rgba(99,102,241,0.08)]">
+              {/* Header */}
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800/60 bg-zinc-900/60">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
+                  <SparklesIcon className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-white font-semibold text-sm mb-1">
-                    {cap.label}
-                  </h4>
-                  <p className="text-zinc-400 text-sm leading-relaxed">
-                    {cap.desc}
-                  </p>
+                  <p className="text-white font-semibold text-sm">SeekBot AI</p>
+                  <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                    Online
+                  </span>
+                </div>
+                {/* macOS-style window dots: grey → red/yellow/green on card hover */}
+                <div className="ml-auto flex gap-2">
+                  <span className="w-3 h-3 rounded-full bg-zinc-700 group-hover:bg-red-500 transition-colors duration-200" />
+                  <span className="w-3 h-3 rounded-full bg-zinc-700 group-hover:bg-yellow-400 transition-colors duration-200" />
+                  <span className="w-3 h-3 rounded-full bg-zinc-700 group-hover:bg-green-500 transition-colors duration-200" />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Right: Chat demo */}
-        <div className="bg-zinc-950/85 backdrop-blur-sm border border-zinc-700/50 rounded-2xl overflow-hidden shadow-2xl shadow-indigo-950/40">
-          {/* Chat header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-700/50 bg-zinc-900/70">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-              <SparklesIcon className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <p className="text-white font-semibold text-sm">SeekBot AI</p>
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                Online
-              </span>
-            </div>
-          </div>
-
-          {/* Chat messages */}
-          <div className="px-5 py-6 space-y-4">
-            {exampleQueries.map((q, i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex justify-end">
-                  <div className="bg-indigo-600/25 border border-indigo-500/30 text-zinc-200 text-sm rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%]">
-                    {q}
+              {/* Messages — show only 3 to keep card clean */}
+              <div className="px-5 pt-5 pb-3 space-y-4">
+                {exampleQueries.slice(0, 3).map((q, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex justify-end">
+                      <div className="bg-indigo-600/20 border border-indigo-500/25 text-zinc-200 text-xs rounded-2xl rounded-tr-sm px-3.5 py-2 max-w-[85%]">
+                        {q.user}
+                      </div>
+                    </div>
+                    <div className="flex justify-start">
+                      <div className="bg-zinc-800/70 text-zinc-300 text-xs rounded-2xl rounded-tl-sm px-3.5 py-2 max-w-[85%]">
+                        <span className="text-indigo-400 font-semibold">
+                          SeekBot:{" "}
+                        </span>
+                        {q.bot}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex justify-start">
-                  <div className="bg-zinc-800/80 text-zinc-300 text-sm rounded-2xl rounded-tl-sm px-4 py-2.5 max-w-[85%]">
-                    <span className="text-indigo-400 font-medium">
-                      SeekBot:
-                    </span>{" "}
-                    {i === 0 &&
-                      "Found 12 remote frontend internships matching your profile. Top match: 88% — React Developer Intern at TechNova."}
-                    {i === 1 &&
-                      "Here are 8 Python developer roles under 8 LPA. Your profile matches 5 of them with 70%+ score."}
-                    {i === 2 &&
-                      "Here's your 6-month Full Stack roadmap: HTML → React → Node.js → Databases → APIs → Deployment."}
-                    {i === 3 &&
-                      "You're missing SQL, Excel, and Power BI. I've added a learning path to your dashboard."}
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Input area */}
-          <div className="px-5 pb-5">
-            <div className="flex items-center gap-3 bg-zinc-800/70 border border-zinc-700/50 rounded-xl px-4 py-3">
-              <span className="text-zinc-500 text-sm flex-1">
-                Ask SeekBot anything...
-              </span>
-              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-                <ArrowRightIcon className="w-3.5 h-3.5 text-white" />
+              {/* Input bar — flush styling, no excess padding */}
+              <div className="px-4 py-4">
+                <div className="flex items-center gap-3 bg-zinc-800/60 border border-zinc-700/40 rounded-xl px-4 py-2.5">
+                  <span className="text-zinc-500 text-xs flex-1">
+                    Ask SeekBot anything...
+                  </span>
+                  <div className="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+                    <ArrowRightIcon className="w-3 h-3 text-white" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // ─── Section 4: Features Grid ─────────────────────────────────────────────────
 
@@ -657,36 +714,43 @@ const features = [
   },
 ];
 
-const FeaturesSection = () => (
-  <section className="relative py-24 px-6">
-    <div className="absolute inset-0 bg-zinc-950/80 pointer-events-none" />
-
-    <div className="relative z-10 max-w-7xl mx-auto">
-      <SectionTitle
-        label="Features"
-        title="Everything You Need to Grow"
-        subtitle="Six core capabilities that make JobSeek a complete career ecosystem, not just a listing board."
-      />
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {features.map((f) => (
-          <div
-            key={f.title}
-            className="bg-zinc-900/75 backdrop-blur-sm border border-zinc-700/50 rounded-xl p-6 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-900/30 hover:-translate-y-1 transition-all duration-300 group"
-          >
-            <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 mb-5 group-hover:bg-indigo-500/20 transition-colors">
-              {f.icon}
+const FeaturesSection = () => {
+  const { ref, inView } = useInView(0.1);
+  return (
+    <section className="relative py-24 px-6">
+      <div ref={ref} className="max-w-7xl mx-auto">
+        <div {...fadeUp(inView)}>
+          <SectionTitle
+            label="Features"
+            title="Everything You Need to Grow"
+            subtitle="Six core capabilities that make JobSeek a complete career ecosystem, not just a listing board."
+          />
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((f, i) => (
+            <div
+              key={f.title}
+              className={fadeUp(inView, i * 80 + 100).className}
+              style={fadeUp(inView, i * 80 + 100).style}
+            >
+              <div className="group bg-zinc-900/80 border border-zinc-800/60 rounded-xl p-6 h-full hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-900/20 transition-[border-color,box-shadow] duration-150">
+                <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center text-indigo-400 mb-5 group-hover:bg-indigo-500/20 transition-colors duration-150">
+                  {f.icon}
+                </div>
+                <h3 className="text-white font-semibold text-lg mb-2">
+                  {f.title}
+                </h3>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  {f.description}
+                </p>
+              </div>
             </div>
-            <h3 className="text-white font-semibold text-lg mb-2">{f.title}</h3>
-            <p className="text-zinc-400 text-sm leading-relaxed">
-              {f.description}
-            </p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // ─── Section 5: How It Works ──────────────────────────────────────────────────
 
@@ -711,45 +775,47 @@ const steps = [
   },
 ];
 
-const HowItWorksSection = () => (
-  <section className="relative py-24 px-6">
-    <div className="absolute inset-0 bg-zinc-900/65 pointer-events-none" />
-
-    <div className="relative z-10 max-w-7xl mx-auto">
-      <SectionTitle
-        label="How It Works"
-        title="Three Steps to Your Next Career Move"
-        subtitle="JobSeek turns a complex job search into a clear, personalized, and AI-guided journey."
-      />
-
-      <div className="grid md:grid-cols-3 gap-8 relative">
-        <div className="hidden md:block absolute top-12 left-[calc(16.66%-12px)] right-[calc(16.66%-12px)] h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent z-0" />
-
-        {steps.map((step, i) => (
-          <div
-            key={i}
-            className="relative z-10 flex flex-col items-center text-center"
-          >
-            <div className="relative mb-6">
-              <div className="w-20 h-20 rounded-2xl bg-zinc-900/80 backdrop-blur-sm border border-zinc-700/50 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-950/30">
-                {step.icon}
+const HowItWorksSection = () => {
+  const { ref, inView } = useInView(0.1);
+  return (
+    <section className="relative py-24 px-6">
+      <div ref={ref} className="max-w-7xl mx-auto">
+        <div {...fadeUp(inView)}>
+          <SectionTitle
+            label="How It Works"
+            title="Three Steps to Your Next Career Move"
+            subtitle="JobSeek turns a complex job search into a clear, personalized, and AI-guided journey."
+          />
+        </div>
+        <div className="grid md:grid-cols-3 gap-8 relative">
+          <div className="hidden md:block absolute top-12 left-[calc(16.66%-12px)] right-[calc(16.66%-12px)] h-px bg-gradient-to-r from-transparent via-indigo-500/25 to-transparent z-0" />
+          {steps.map((step, i) => (
+            <div
+              key={i}
+              className={`relative z-10 flex flex-col items-center text-center transition-all duration-700 ease-out ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+              style={{ transitionDelay: `${i * 150}ms` }}
+            >
+              <div className="relative mb-6">
+                <div className="w-20 h-20 rounded-2xl bg-zinc-900/90 border border-zinc-800/60 flex items-center justify-center text-indigo-400 shadow-lg shadow-black/30">
+                  {step.icon}
+                </div>
+                <span className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+                  {i + 1}
+                </span>
               </div>
-              <span className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center border-2 border-zinc-950/50">
-                {i + 1}
-              </span>
+              <h3 className="text-white font-semibold text-lg mb-3">
+                {step.title}
+              </h3>
+              <p className="text-zinc-400 text-sm leading-relaxed">
+                {step.description}
+              </p>
             </div>
-            <h3 className="text-white font-semibold text-lg mb-3">
-              {step.title}
-            </h3>
-            <p className="text-zinc-400 text-sm leading-relaxed">
-              {step.description}
-            </p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // ─── Section 6: Career Growth ─────────────────────────────────────────────────
 
@@ -780,106 +846,124 @@ const growthPoints = [
   },
 ];
 
-const CareerGrowthSection = () => (
-  <section className="relative py-24 px-6">
-    <div className="absolute inset-0 bg-zinc-950/80 pointer-events-none" />
-
-    <div className="relative z-10 max-w-7xl mx-auto">
-      <div className="grid lg:grid-cols-2 gap-16 items-center">
-        <div>
-          <SectionLabel>Career Growth</SectionLabel>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-5 leading-tight">
-            Don't Just Find a Job.{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
-              Build a Career.
-            </span>
-          </h2>
-          <p className="text-zinc-400 text-lg mb-10 leading-relaxed">
-            JobSeek is designed to help you grow beyond your current level —
-            with AI-powered guidance on what to learn, what to build, and how to
-            position yourself for the role you want.
-          </p>
-          <div className="grid sm:grid-cols-2 gap-5">
-            {growthPoints.map((g) => (
-              <div
-                key={g.title}
-                className="bg-zinc-900/75 backdrop-blur-sm border border-zinc-700/50 rounded-xl p-5 hover:border-indigo-500/40 transition-colors"
-              >
-                <div className="text-indigo-400 mb-3">{g.icon}</div>
-                <h4 className="text-white font-semibold text-sm mb-1.5">
-                  {g.title}
-                </h4>
-                <p className="text-zinc-400 text-xs leading-relaxed">
-                  {g.description}
-                </p>
-              </div>
-            ))}
+const CareerGrowthSection = () => {
+  const { ref, inView } = useInView(0.1);
+  return (
+    <section className="relative py-24 px-6">
+      <div ref={ref} className="max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          {/* Left */}
+          <div {...fadeLeft(inView)}>
+            <SectionLabel>Career Growth</SectionLabel>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-5 leading-tight">
+              Don't Just Find a Job.{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
+                Build a Career.
+              </span>
+            </h2>
+            <p className="text-zinc-400 text-lg mb-10 leading-relaxed">
+              JobSeek is designed to help you grow beyond your current level —
+              with AI-powered guidance on what to learn, what to build, and how
+              to position yourself for the role you want.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {growthPoints.map((g, i) => (
+                <div
+                  key={g.title}
+                  className={fadeUp(inView, i * 80 + 300).className}
+                  style={fadeUp(inView, i * 80 + 300).style}
+                >
+                  <div className="bg-zinc-900/80 border border-zinc-800/60 rounded-xl p-5 h-full hover:border-indigo-500/30 hover:shadow-md hover:shadow-indigo-900/15 transition-[border-color,box-shadow] duration-150">
+                    <div className="text-indigo-400 mb-3">{g.icon}</div>
+                    <h4 className="text-white font-semibold text-sm mb-1.5">
+                      {g.title}
+                    </h4>
+                    <p className="text-zinc-400 text-xs leading-relaxed">
+                      {g.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Growth snapshot card */}
-        <div className="bg-zinc-900/75 backdrop-blur-sm border border-zinc-700/50 rounded-2xl p-8 space-y-4">
-          <h3 className="text-white font-semibold text-lg mb-6 flex items-center gap-2">
-            <SparklesIcon className="w-5 h-5 text-indigo-400" />
-            SeekBot Career Snapshot
-          </h3>
-          {[
-            {
-              label: "Current Level",
-              value: "Frontend Developer (Intermediate)",
-              color: "bg-blue-500",
-            },
-            {
-              label: "Target Role",
-              value: "Full Stack Engineer",
-              color: "bg-violet-500",
-            },
-            {
-              label: "Skills to Learn",
-              value: "Node.js, PostgreSQL, Docker",
-              color: "bg-amber-500",
-            },
-            {
-              label: "Suggested Projects",
-              value: "REST API + Blog Platform + Auth System",
-              color: "bg-emerald-500",
-            },
-            {
-              label: "Estimated Timeline",
-              value: "3–4 months with consistent effort",
-              color: "bg-rose-500",
-            },
-          ].map((item) => (
-            <div key={item.label} className="flex items-start gap-3">
-              <span
-                className={`w-2 h-2 rounded-full mt-2 shrink-0 ${item.color}`}
-              />
-              <div>
-                <span className="text-zinc-500 text-xs font-medium block mb-0.5">
-                  {item.label}
-                </span>
-                <span className="text-zinc-200 text-sm">{item.value}</span>
+          {/* Right: snapshot card */}
+          <div {...fadeRight(inView, 150)}>
+            <div className="bg-zinc-900/80 border border-zinc-800/60 rounded-2xl p-8">
+              <h3 className="text-white font-semibold text-lg mb-7 flex items-center gap-2">
+                <SparklesIcon className="w-5 h-5 text-indigo-400" />
+                SeekBot Career Snapshot
+              </h3>
+              {[
+                {
+                  label: "Current Level",
+                  value: "Frontend Developer (Intermediate)",
+                  dot: "bg-blue-500",
+                },
+                {
+                  label: "Target Role",
+                  value: "Full Stack Engineer",
+                  dot: "bg-violet-500",
+                },
+                {
+                  label: "Skills to Learn",
+                  value: "Node.js, PostgreSQL, Docker",
+                  dot: "bg-amber-500",
+                },
+                {
+                  label: "Suggested Projects",
+                  value: "REST API + Blog Platform + Auth System",
+                  dot: "bg-emerald-500",
+                },
+                {
+                  label: "Estimated Timeline",
+                  value: "3–4 months with consistent effort",
+                  dot: "bg-rose-500",
+                },
+              ].map((item, i) => (
+                <div
+                  key={item.label}
+                  className={`flex items-start gap-3 mb-4 transition-all duration-500 ease-out ${inView ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4"}`}
+                  style={{ transitionDelay: `${i * 80 + 300}ms` }}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full mt-2 shrink-0 ${item.dot}`}
+                  />
+                  <div>
+                    <span className="text-zinc-500 text-xs font-medium block mb-0.5">
+                      {item.label}
+                    </span>
+                    <span className="text-zinc-200 text-sm">{item.value}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="mt-4 pt-5 border-t border-zinc-800/60">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-zinc-400 text-xs">
+                    Profile Completion
+                  </span>
+                  <span className="text-indigo-400 text-xs font-semibold">
+                    72%
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-1000 ease-out ${inView ? "w-[72%]" : "w-0"}`}
+                    style={{ transitionDelay: "800ms" }}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
-          <div className="mt-6 pt-5 border-t border-zinc-700/40">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-zinc-400 text-xs">Profile Completion</span>
-              <span className="text-indigo-400 text-xs font-semibold">72%</span>
-            </div>
-            <div className="w-full h-2 bg-zinc-800/80 rounded-full overflow-hidden">
-              <div className="w-[72%] h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full" />
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
-// ─── Section 7: Testimonials ──────────────────────────────────────────────────
+// ─── Section 7: Testimonials Carousel ────────────────────────────────────────
 
-const testimonials = [
+const allTestimonials = [
   {
     name: "Priya Sharma",
     role: "Data Analyst Intern · Bangalore",
@@ -896,242 +980,330 @@ const testimonials = [
   },
   {
     name: "Anika Reddy",
-    role: "Fresher · Full Stack Aspirant · Hyderabad",
+    role: "Full Stack Aspirant · Hyderabad",
     avatar: "AR",
     quote:
       'I asked SeekBot "how do I become a full stack developer?" and got a step-by-step plan with projects, resources, and timelines. It feels like having a senior mentor available 24/7.',
   },
+  {
+    name: "Kiran Patel",
+    role: "Backend Developer · Mumbai",
+    avatar: "KP",
+    quote:
+      "JobSeek helped me understand exactly which projects to build to land a backend role. The project recommendations were spot-on — my resume improved drastically within a month.",
+  },
+  {
+    name: "Sneha Nair",
+    role: "UI/UX Designer · Kochi",
+    avatar: "SN",
+    quote:
+      "I switched careers from graphic design to UI/UX and SeekBot mapped out my entire transition path — what tools to learn, what portfolio projects to do, and which companies to target.",
+  },
+  {
+    name: "Arjun Kumar",
+    role: "DevOps Engineer · Bangalore",
+    avatar: "AK",
+    quote:
+      "The skill gap feature is a game-changer. SeekBot told me I needed Docker and Kubernetes before I could apply for senior roles. I focused on those and doubled my interview calls.",
+  },
 ];
 
-const TestimonialsSection = () => (
-  <section className="relative py-24 px-6">
-    <div className="absolute inset-0 bg-zinc-900/65 pointer-events-none" />
+// ─── Testimonials: pure-CSS infinite marquee ─────────────────────────────────
+// CARD_STEP = card-width + gap-right  →  moving by N*CARD_STEP loops seamlessly
+const T_CARD_W = 380;
+const T_CARD_GAP = 24;
+const T_CARD_STEP = T_CARD_W + T_CARD_GAP; // 404 px per slot
+const T_TOTAL_W = allTestimonials.length * T_CARD_STEP; // 2424 px = one full loop
 
-    <div className="relative z-10 max-w-7xl mx-auto">
-      <SectionTitle
-        label="Testimonials"
-        title="What Our Users Say"
-        subtitle="Real stories from job seekers who grew their careers with JobSeek and SeekBot."
-      />
+const TestimonialsSection = () => {
+  const { ref: titleRef, inView: titleInView } = useInView(0.1);
+  const [isPaused, setIsPaused] = useState(false);
+  const doubled = [...allTestimonials, ...allTestimonials];
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {testimonials.map((t) => (
-          <div
-            key={t.name}
-            className="bg-zinc-900/75 backdrop-blur-sm border border-zinc-700/50 rounded-xl p-6 hover:border-indigo-500/40 hover:-translate-y-1 transition-all duration-300 flex flex-col"
-          >
-            <div className="text-indigo-400/40 text-5xl font-serif leading-none mb-4 select-none">
-              "
-            </div>
-            <p className="text-zinc-300 text-sm leading-relaxed flex-1 mb-6">
-              {t.quote}
-            </p>
-            <div className="flex items-center gap-3 pt-4 border-t border-zinc-700/40">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                {t.avatar}
-              </div>
-              <div>
-                <p className="text-white font-semibold text-sm">{t.name}</p>
-                <p className="text-zinc-500 text-xs">{t.role}</p>
-              </div>
-            </div>
-          </div>
-        ))}
+  return (
+    <section className="relative py-24 overflow-hidden">
+      {/* Inject the keyframe — value is static so this is safe */}
+      <style>{`
+        @keyframes t-marquee {
+          from { transform: translateX(0); }
+          to   { transform: translateX(-${T_TOTAL_W}px); }
+        }
+      `}</style>
+
+      {/* Title stays within page max-width */}
+      <div ref={titleRef} className="px-6 max-w-7xl mx-auto mb-12">
+        <div {...fadeUp(titleInView)}>
+          <SectionTitle
+            label="Testimonials"
+            title="What Our Users Say"
+            subtitle="Real stories from job seekers who grew their careers with JobSeek and SeekBot."
+          />
+        </div>
       </div>
-    </div>
-  </section>
-);
+
+      {/* Edge-to-edge scrolling track */}
+      <div className="overflow-hidden">
+        <div
+          style={{
+            display: "flex",
+            width: `${doubled.length * T_CARD_STEP}px`,
+            animation: `t-marquee 38s linear infinite`,
+            animationPlayState: isPaused ? "paused" : "running",
+          }}
+        >
+          {doubled.map((t, i) => (
+            <div
+              key={i}
+              style={{
+                width: T_CARD_W,
+                marginRight: T_CARD_GAP,
+                flexShrink: 0,
+              }}
+              onMouseEnter={() => setIsPaused(true)}
+              onMouseLeave={() => setIsPaused(false)}
+            >
+              <div className="bg-zinc-900/80 border border-zinc-800/60 rounded-xl p-6 flex flex-col h-full cursor-default hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-900/20 transition-[border-color,box-shadow] duration-150">
+                <div className="text-indigo-400/30 text-4xl font-serif leading-none mb-4 select-none">
+                  "
+                </div>
+                <p className="text-zinc-300 text-sm leading-relaxed flex-1 mb-6">
+                  {t.quote}
+                </p>
+                <div className="flex items-center gap-3 pt-4 border-t border-zinc-800/60">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                    {t.avatar}
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm">{t.name}</p>
+                    <p className="text-zinc-500 text-xs">{t.role}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 // ─── Section 8: Stats ─────────────────────────────────────────────────────────
 
 const stats = [
   {
     icon: <BriefcaseIcon className="w-7 h-7" />,
-    value: "10,000+",
+    countTo: 99,
+    separator: ",",
+    suffix: "+",
     label: "Jobs Listed",
     sub: "Corporate & domestic roles",
   },
   {
     icon: <UsersIcon className="w-7 h-7" />,
-    value: "5,000+",
+    countTo: 500,
+    separator: ",",
+    suffix: "+",
     label: "Active Users",
     sub: "Job seekers & recruiters",
   },
   {
     icon: <TargetIcon className="w-7 h-7" />,
-    value: "85%+",
+    countTo: 90,
+    separator: "",
+    prefix: "~",
+    suffix: "%+",
     label: "Match Accuracy",
     sub: "AI-powered relevance",
   },
   {
     icon: <BuildingIcon className="w-7 h-7" />,
-    value: "200+",
+    countTo: 200,
+    separator: "",
+    suffix: "+",
     label: "Partner Companies",
     sub: "Hiring via JobSeek",
   },
 ];
 
-const StatsSection = () => (
-  <section className="relative py-20 px-6 border-y border-zinc-700/30">
-    <div className="absolute inset-0 bg-zinc-950/85 pointer-events-none" />
-
-    <div className="relative z-10 max-w-7xl mx-auto">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className="flex flex-col items-center text-center group"
-          >
-            <div className="w-14 h-14 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4 group-hover:bg-indigo-500/20 transition-colors">
-              {s.icon}
+const StatsSection = () => {
+  const { ref, inView } = useInView(0.2);
+  return (
+    <section className="relative py-20 px-6">
+      <div ref={ref} className="relative z-10 max-w-7xl mx-auto">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+          {stats.map((s, i) => (
+            <div
+              key={s.label}
+              className={`flex flex-col items-center text-center group ${fadeUp(inView, i * 100).className}`}
+              style={fadeUp(inView, i * 100).style}
+            >
+              <div className="w-14 h-14 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-4 group-hover:bg-indigo-500/20 transition-colors">
+                {s.icon}
+              </div>
+              {/* Animated number + suffix */}
+              <div className="text-3xl md:text-4xl font-black text-white mb-1 tabular-nums">
+                <CountUp
+                  from={0}
+                  to={s.countTo}
+                  separator={s.separator}
+                  direction="up"
+                  duration={2.2}
+                  delay={i * 0.15}
+                  startWhen={inView}
+                  className=""
+                />
+                <span>{s.suffix}</span>
+              </div>
+              <div className="text-zinc-300 font-semibold text-sm mb-1">
+                {s.label}
+              </div>
+              <div className="text-zinc-600 text-xs">{s.sub}</div>
             </div>
-            <div className="text-3xl md:text-4xl font-black text-white mb-1">
-              {s.value}
-            </div>
-            <div className="text-zinc-300 font-semibold text-sm mb-1">
-              {s.label}
-            </div>
-            <div className="text-zinc-600 text-xs">{s.sub}</div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // ─── Section 9: Why Choose JobSeek ───────────────────────────────────────────
 
 const comparisonRows = [
+  // Features both platforms offer
+  { feature: "Job Listings & Search", jobseek: true, traditional: true },
+  { feature: "Apply to Jobs", jobseek: true, traditional: true },
+  { feature: "User Profiles", jobseek: true, traditional: true },
+  // JobSeek-exclusive AI capabilities
   { feature: "AI-Powered Job Matching", jobseek: true, traditional: false },
-  { feature: "Natural Language Search", jobseek: true, traditional: false },
-  {
-    feature: "Resume Intelligence & Auto-Parsing",
-    jobseek: true,
-    traditional: false,
-  },
+  { feature: "Resume Intelligence", jobseek: true, traditional: false },
   { feature: "Job Match Score", jobseek: true, traditional: false },
   { feature: "Skill Gap Detection", jobseek: true, traditional: false },
-  { feature: "Career Growth Roadmaps", jobseek: true, traditional: false },
-  { feature: "Project Recommendations", jobseek: true, traditional: false },
-  { feature: "Resume Improvement Tips", jobseek: true, traditional: false },
-  { feature: "Real-Time Messaging", jobseek: true, traditional: false },
-  { feature: "Basic Job Listings", jobseek: true, traditional: true },
-  { feature: "Apply to Jobs", jobseek: true, traditional: true },
+  { feature: "Career Roadmaps & Guidance", jobseek: true, traditional: false },
 ];
 
-const WhyChooseSection = () => (
-  <section className="relative py-24 px-6">
-    <div className="absolute inset-0 bg-zinc-900/65 pointer-events-none" />
-
-    <div className="relative z-10 max-w-4xl mx-auto">
-      <SectionTitle
-        label="Why Choose JobSeek?"
-        title={
-          <>
-            JobSeek vs{" "}
-            <span className="text-zinc-500">Traditional Job Portals</span>
-          </>
-        }
-        subtitle="See exactly what you gain by choosing an AI-driven career platform over a basic listing board."
-      />
-
-      <div className="rounded-2xl overflow-hidden border border-zinc-700/50">
-        {/* Header */}
-        <div className="grid grid-cols-3 bg-zinc-900/80 backdrop-blur-sm border-b border-zinc-700/50">
-          <div className="col-span-1 px-6 py-4 text-zinc-500 text-sm font-semibold">
-            Feature
-          </div>
-          <div className="col-span-1 px-6 py-4 text-indigo-400 text-sm font-bold text-center bg-indigo-500/5">
-            JobSeek
-          </div>
-          <div className="col-span-1 px-6 py-4 text-zinc-500 text-sm font-semibold text-center">
-            Traditional
-          </div>
+const WhyChooseSection = () => {
+  const { ref, inView } = useInView(0.1);
+  return (
+    <section className="relative py-24 px-6">
+      <div ref={ref} className="max-w-4xl mx-auto">
+        <div {...fadeUp(inView)}>
+          <SectionTitle
+            label="Why Choose JobSeek?"
+            title={
+              <>
+                JobSeek vs{" "}
+                <span className="text-zinc-500">Traditional Job Portals</span>
+              </>
+            }
+            subtitle="See exactly what you gain by choosing an AI-driven career platform over a basic listing board."
+          />
         </div>
-
-        {comparisonRows.map((row, i) => (
-          <div
-            key={row.feature}
-            className={`grid grid-cols-3 border-b border-zinc-700/30 ${
-              i % 2 === 0
-                ? "bg-zinc-950/60 backdrop-blur-sm"
-                : "bg-zinc-900/50 backdrop-blur-sm"
-            }`}
-          >
-            <div className="col-span-1 px-6 py-3.5 text-zinc-300 text-sm">
-              {row.feature}
+        <div
+          className={`rounded-2xl overflow-hidden border border-zinc-800/60 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+          style={{ transitionDelay: "200ms" }}
+        >
+          <div className="grid grid-cols-3 bg-zinc-900/70 border-b border-zinc-800/60">
+            <div className="col-span-1 px-6 py-4 text-zinc-500 text-sm font-semibold">
+              Feature
             </div>
-            <div className="col-span-1 px-6 py-3.5 flex justify-center items-center bg-indigo-500/5">
-              {row.jobseek ? (
-                <CheckIcon className="w-5 h-5 text-indigo-400" />
-              ) : (
-                <XMarkIcon className="w-5 h-5 text-zinc-600" />
-              )}
+            <div className="col-span-1 px-6 py-4 text-indigo-400 text-sm font-bold text-center bg-indigo-500/5">
+              JobSeek
             </div>
-            <div className="col-span-1 px-6 py-3.5 flex justify-center items-center">
-              {row.traditional ? (
-                <CheckIcon className="w-5 h-5 text-zinc-500" />
-              ) : (
-                <XMarkIcon className="w-5 h-5 text-zinc-700" />
-              )}
+            <div className="col-span-1 px-6 py-4 text-zinc-500 text-sm font-semibold text-center">
+              Traditional
             </div>
           </div>
-        ))}
+          {comparisonRows.map((row, i) => (
+            <div
+              key={row.feature}
+              className={`grid grid-cols-3 border-b border-zinc-800/40 bg-zinc-950/50 transition-all duration-400 ease-out ${inView ? "opacity-100" : "opacity-0"}`}
+              style={{ transitionDelay: `${i * 40 + 300}ms` }}
+            >
+              <div className="col-span-1 px-6 py-3.5 text-zinc-300 text-sm">
+                {row.feature}
+              </div>
+              <div className="col-span-1 px-6 py-3.5 flex justify-center items-center bg-indigo-500/5">
+                {row.jobseek ? (
+                  <CheckIcon className="w-5 h-5 text-indigo-400" />
+                ) : (
+                  <XMarkIcon className="w-5 h-5 text-zinc-700" />
+                )}
+              </div>
+              <div className="col-span-1 px-6 py-3.5 flex justify-center items-center">
+                {row.traditional ? (
+                  <CheckIcon className="w-5 h-5 text-zinc-500" />
+                ) : (
+                  <XMarkIcon className="w-5 h-5 text-zinc-700" />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
-// ─── Section 10: Call To Action ───────────────────────────────────────────────
+// ─── Section 10: CTA ──────────────────────────────────────────────────────────
 
-const CTASection = ({ onGetStarted }: { onGetStarted: () => void }) => (
-  <section className="relative py-24 px-6">
-    <div className="absolute inset-0 bg-zinc-950/75 pointer-events-none" />
-
-    <div className="relative z-10 max-w-4xl mx-auto text-center">
-      <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-1.5 mb-8">
-        <SparklesIcon className="w-4 h-4 text-indigo-400" />
-        <span className="text-indigo-300 text-sm font-medium">
-          Powered by SeekBot AI
-        </span>
-      </div>
-
-      <h2 className="text-3xl md:text-5xl font-black text-white mb-6 leading-tight">
-        Stop applying blindly.{" "}
-        <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
-          Start applying intelligently.
-        </span>
-      </h2>
-
-      <p className="text-zinc-400 text-lg mb-10 max-w-xl mx-auto leading-relaxed">
-        Join thousands of job seekers who let SeekBot guide their job search,
-        close skill gaps, and build careers — not just resumes.
-      </p>
-
-      <div className="flex flex-col sm:flex-row justify-center gap-4">
-        <PulsatingButton
-          variant="ripple"
-          pulseColor="#ffffff"
-          onClick={onGetStarted}
-          className="py-4 px-8 text-lg font-bold shadow-xl shadow-zinc-100/10 hover:scale-105 transition-transform bg-white text-zinc-900"
+const CTASection = ({ onGetStarted }: { onGetStarted: () => void }) => {
+  const { ref, inView } = useInView(0.2);
+  return (
+    <section className="relative py-24 px-6">
+      <div ref={ref} className="max-w-4xl mx-auto text-center">
+        <div
+          className={`inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-1.5 mb-8 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}
         >
-          Get Started — It's Free
-        </PulsatingButton>
-        <a
-          href="/seekbot"
-          className="inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white border border-zinc-600/50 rounded-lg hover:border-indigo-500/50 hover:bg-zinc-900/50 transition-all backdrop-blur-sm"
+          <SparklesIcon className="w-4 h-4 text-indigo-400" />
+          <span className="text-indigo-300 text-sm font-medium">
+            Powered by SeekBot AI
+          </span>
+        </div>
+        <h2
+          className={`text-3xl md:text-5xl font-black text-white mb-6 leading-tight transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          style={{ transitionDelay: "100ms" }}
         >
-          <ChatBubbleIcon className="w-5 h-5" />
-          Try SeekBot
-        </a>
+          Stop applying blindly.{" "}
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-400">
+            Start applying intelligently.
+          </span>
+        </h2>
+        <p
+          className={`text-zinc-400 text-lg mb-10 max-w-xl mx-auto leading-relaxed transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          style={{ transitionDelay: "200ms" }}
+        >
+          Join thousands of job seekers who let SeekBot guide their job search,
+          close skill gaps, and build careers — not just resumes.
+        </p>
+        <div
+          className={`flex flex-col sm:flex-row justify-center gap-4 transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+          style={{ transitionDelay: "300ms" }}
+        >
+          <PulsatingButton
+            variant="ripple"
+            pulseColor="#ffffff"
+            onClick={onGetStarted}
+            className="py-4 px-8 text-lg font-bold shadow-xl shadow-zinc-100/10 hover:scale-105 transition-transform bg-white text-zinc-900"
+          >
+            Get Started — It's Free
+          </PulsatingButton>
+          <a
+            href="/seekbot"
+            className="inline-flex items-center justify-center gap-2 px-8 py-4 text-base font-semibold text-white border border-zinc-700/60 rounded-lg hover:border-indigo-500/50 hover:bg-zinc-900/40 transition-all"
+          >
+            <ChatBubbleIcon className="w-5 h-5" />
+            Try SeekBot
+          </a>
+        </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // ─── Section 11: Contact ──────────────────────────────────────────────────────
 
 const ContactSection = () => {
+  const { ref, inView } = useInView(0.1);
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [sent, setSent] = useState(false);
 
@@ -1149,17 +1321,20 @@ const ContactSection = () => {
 
   return (
     <section id="contact" className="relative py-24 px-6">
-      <div className="absolute inset-0 bg-zinc-900/65 pointer-events-none" />
-
-      <div className="relative z-10 max-w-2xl mx-auto">
-        <SectionTitle
-          label="Get In Touch"
-          title="Have Questions? Let's Talk."
-          subtitle="Reach out with any questions about JobSeek, partnership opportunities, or feedback."
-        />
+      <div ref={ref} className="max-w-2xl mx-auto">
+        <div {...fadeUp(inView)}>
+          <SectionTitle
+            label="Get In Touch"
+            title="Have Questions? Let's Talk."
+            subtitle="Reach out with any questions about JobSeek, partnership opportunities, or feedback."
+          />
+        </div>
 
         {sent ? (
-          <div className="bg-zinc-900/80 backdrop-blur-sm border border-emerald-500/30 rounded-xl p-8 text-center">
+          <div
+            className={`bg-zinc-900/80 border border-emerald-500/30 rounded-xl p-8 text-center ${fadeUp(inView).className}`}
+            style={fadeUp(inView).style}
+          >
             <div className="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckIcon className="w-7 h-7 text-emerald-400" />
             </div>
@@ -1177,33 +1352,41 @@ const ContactSection = () => {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-zinc-400 text-sm font-medium mb-1.5">
-                Name
-              </label>
-              <input
-                type="text"
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Your full name"
-                className="w-full bg-zinc-900/70 backdrop-blur-sm border border-zinc-700/50 rounded-xl px-4 py-3 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-indigo-500/60 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-zinc-400 text-sm font-medium mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="you@example.com"
-                className="w-full bg-zinc-900/70 backdrop-blur-sm border border-zinc-700/50 rounded-xl px-4 py-3 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-indigo-500/60 transition-colors"
-              />
-            </div>
+          <form
+            onSubmit={handleSubmit}
+            className={`space-y-5 ${fadeUp(inView, 150).className}`}
+            style={fadeUp(inView, 150).style}
+          >
+            {[
+              {
+                label: "Name",
+                key: "name",
+                type: "text",
+                placeholder: "Your full name",
+              },
+              {
+                label: "Email",
+                key: "email",
+                type: "email",
+                placeholder: "you@example.com",
+              },
+            ].map((field) => (
+              <div key={field.key}>
+                <label className="block text-zinc-400 text-sm font-medium mb-1.5">
+                  {field.label}
+                </label>
+                <input
+                  type={field.type}
+                  required
+                  value={form[field.key as keyof typeof form]}
+                  onChange={(e) =>
+                    setForm({ ...form, [field.key]: e.target.value })
+                  }
+                  placeholder={field.placeholder}
+                  className="w-full bg-zinc-900/70 border border-zinc-800/60 rounded-xl px-4 py-3 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-indigo-500/50 transition-colors"
+                />
+              </div>
+            ))}
             <div>
               <label className="block text-zinc-400 text-sm font-medium mb-1.5">
                 Message
@@ -1214,7 +1397,7 @@ const ContactSection = () => {
                 value={form.message}
                 onChange={(e) => setForm({ ...form, message: e.target.value })}
                 placeholder="How can we help you?"
-                className="w-full bg-zinc-900/70 backdrop-blur-sm border border-zinc-700/50 rounded-xl px-4 py-3 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-indigo-500/60 transition-colors resize-none"
+                className="w-full bg-zinc-900/70 border border-zinc-800/60 rounded-xl px-4 py-3 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-indigo-500/50 transition-colors resize-none"
               />
             </div>
             <button
@@ -1234,12 +1417,9 @@ const ContactSection = () => {
 // ─── Section 12: Footer ───────────────────────────────────────────────────────
 
 const FooterSection = () => (
-  <footer className="relative border-t border-zinc-700/40 py-12 px-6">
-    <div className="absolute inset-0 bg-zinc-950/90 pointer-events-none" />
-
-    <div className="relative z-10 max-w-7xl mx-auto">
+  <footer className="relative py-12 px-6 bg-zinc-950/60">
+    <div className="max-w-7xl mx-auto">
       <div className="grid md:grid-cols-4 gap-10 mb-10">
-        {/* Brand */}
         <div className="md:col-span-2">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
@@ -1266,7 +1446,7 @@ const FooterSection = () => (
                 href={s.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-zinc-600 hover:text-zinc-300 text-xs border border-zinc-700/50 hover:border-zinc-500 rounded-lg px-3 py-1.5 transition-all backdrop-blur-sm"
+                className="text-zinc-600 hover:text-zinc-300 text-xs border border-zinc-800/60 hover:border-zinc-600 rounded-lg px-3 py-1.5 transition-all"
               >
                 {s.label}
               </a>
@@ -1274,7 +1454,6 @@ const FooterSection = () => (
           </div>
         </div>
 
-        {/* Product links */}
         <div>
           <h4 className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-4">
             Product
@@ -1298,7 +1477,6 @@ const FooterSection = () => (
           </ul>
         </div>
 
-        {/* Company links */}
         <div>
           <h4 className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-4">
             Company
@@ -1323,7 +1501,7 @@ const FooterSection = () => (
         </div>
       </div>
 
-      <div className="pt-8 border-t border-zinc-700/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="pt-8 border-t border-zinc-800/40 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <p className="text-zinc-600 text-xs">
             © {new Date().getFullYear()} JobSeek. All rights reserved.
@@ -1363,13 +1541,7 @@ const Landing = () => {
 
   return (
     <div className="dark flex flex-col text-white">
-      {/*
-       * Single global LiquidEther fixed behind everything.
-       * pointer-events-auto so the fluid responds to mouse movement.
-       * Each section below has a pointer-events-none overlay so mouse events
-       * pass through empty space to the canvas while all interactive
-       * elements (cards, buttons, links, forms) still work normally.
-       */}
+      {/* Single global LiquidEther canvas — fixed behind all sections */}
       <div className="fixed inset-0 z-0 pointer-events-auto">
         <LiquidEther
           colors={["#5227FF", "#1c0ab8", "#5b69b9"]}

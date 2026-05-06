@@ -1,9 +1,15 @@
+import logging
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import Profile, Skill
+from .utils.resume_parser import extract_resume_text
+
+logger = logging.getLogger(__name__)
 
 
 User = get_user_model()
@@ -35,6 +41,8 @@ class ProfileSerializer(serializers.ModelSerializer):
             "resume",
             "profile_picture",
             "resume_uploaded_at",
+            "resume_text",
+            "resume_last_parsed_at",
             "linkedin_url",
             "github_url",
             "parsed_resume",
@@ -42,7 +50,47 @@ class ProfileSerializer(serializers.ModelSerializer):
             "updated_at",
             "skills",
         ]
-        read_only_fields = ["created_at", "updated_at", "parsed_resume", "user"]
+        read_only_fields = [
+            "created_at",
+            "updated_at",
+            "parsed_resume",
+            "user",
+            "resume_text",
+            "resume_last_parsed_at",
+        ]
+
+    def update(self, instance, validated_data):
+        """
+        Override update to auto-parse resume text when a new file is uploaded.
+        """
+        resume_file = validated_data.get("resume", None)
+        instance = super().update(instance, validated_data)
+
+        # Auto-parse when a new resume file is provided
+        if resume_file:
+            try:
+                text = extract_resume_text(instance.resume.path)
+                instance.resume_text = text
+                instance.resume_last_parsed_at = timezone.now()
+                instance.resume_uploaded_at = timezone.now()
+                instance.save(
+                    update_fields=[
+                        "resume_text",
+                        "resume_last_parsed_at",
+                        "resume_uploaded_at",
+                    ]
+                )
+            except (ValueError, Exception) as exc:
+                logger.warning("Resume auto-parse failed for user %s: %s", instance.user_id, exc)
+                # Don't block the upload — the file is saved, parsing can be retried
+
+        # If resume was explicitly cleared (set to None/empty), also clear parsed data
+        if "resume" in validated_data and not validated_data["resume"]:
+            instance.resume_text = None
+            instance.resume_last_parsed_at = None
+            instance.save(update_fields=["resume_text", "resume_last_parsed_at"])
+
+        return instance
 
 
 class ChangePasswordSerializer(serializers.Serializer):

@@ -10,6 +10,8 @@ Classify the user message into ONLY one intent:
 
 job_search
 resume_review
+resume_analysis
+skill_analysis
 career_roadmap
 interview_prep
 market_insights
@@ -27,6 +29,8 @@ Return only the intent name.
     allowed = {
         "job_search",
         "resume_review",
+        "resume_analysis",
+        "skill_analysis",
         "career_roadmap",
         "interview_prep",
         "market_insights",
@@ -46,7 +50,11 @@ def detect_intent_rule(message: str) -> str | None:
     ]
 
     resume_keywords = [
-        "resume", "cv", "ats", "improve my resume"
+        "resume", "cv", "ats", "improve my resume",
+        "analyze my resume", "review my resume", "review my cv",
+        "resume analysis", "resume review", "resume feedback",
+        "what skills do i have", "my skills", "skill analysis",
+        "career analysis", "rate my resume",
     ]
 
     roadmap_keywords = [
@@ -99,7 +107,13 @@ def detect_intent(message: str) -> str:
     if rule_result:
         return rule_result
 
-    return detect_intent_ai(message)
+    ai_result = detect_intent_ai(message)
+
+    # Normalize resume-related intents to a single key
+    if ai_result in ("resume_analysis", "skill_analysis"):
+        return "resume_review"
+
+    return ai_result
 
 INTENTS = [
     "job_search",

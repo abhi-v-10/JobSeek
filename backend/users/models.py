@@ -51,6 +51,10 @@ class Profile(models.Model):
     linkedin_url = models.URLField(max_length=500, blank=True, default="")
     github_url = models.URLField(max_length=500, blank=True, default="")
 
+    # Resume text extraction
+    resume_text = models.TextField(null=True, blank=True)
+    resume_last_parsed_at = models.DateTimeField(null=True, blank=True)
+
     # AI extracted fields
     parsed_resume = models.JSONField(null=True, blank=True)
 
