@@ -19,11 +19,11 @@ const JobResultsMessage: React.FC<JobResultsMessageProps> = ({
   if (!jobs || jobs.length === 0) {
     return (
       <div className="flex items-start gap-4 mb-8 group">
-        <div className="shrink-0 w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 flex items-center justify-center group-hover:border-zinc-700 transition-colors shadow-sm mt-1">
+        <div className="shrink-0 w-8 h-8 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 flex items-center justify-center group-hover:border-zinc-400 dark:group-hover:border-zinc-700 transition-colors shadow-sm mt-1">
           <Bot size={18} />
         </div>
         <div className="max-w-[85%]">
-          <p className="text-[15px] text-zinc-300 leading-relaxed whitespace-pre-wrap wrap-break-word">
+          <p className="text-[15px] text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap wrap-break-word">
             {content}
           </p>
         </div>
@@ -36,18 +36,36 @@ const JobResultsMessage: React.FC<JobResultsMessageProps> = ({
     <>
       <div className="flex items-start gap-4 mb-10 group">
         {/* Bot avatar */}
-        <div className="shrink-0 w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 flex items-center justify-center group-hover:border-zinc-700 transition-colors shadow-sm mt-1">
+        <div className="shrink-0 w-8 h-8 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 flex items-center justify-center group-hover:border-zinc-400 dark:group-hover:border-zinc-700 transition-colors shadow-sm mt-1">
           <Bot size={18} />
         </div>
 
         {/* Panel */}
         <div className="flex-1 min-w-0">
+          {/* Summary / recommendation text (shown when content is provided) */}
+          {content && (
+            <div className="mb-5 space-y-1">
+              {content.split("\n").map((line, i) =>
+                line.trim() === "" ? (
+                  <div key={i} className="h-2" />
+                ) : (
+                  <p
+                    key={i}
+                    className="text-[14px] text-zinc-700 dark:text-zinc-300 leading-relaxed"
+                  >
+                    {line}
+                  </p>
+                ),
+              )}
+            </div>
+          )}
+
           {/* Header row */}
           <div className="flex items-center gap-2 mb-4">
             <div className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
               <BriefcaseIcon size={14} className="text-indigo-400 shrink-0" />
             </div>
-            <p className="text-sm font-medium text-zinc-300">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Found{" "}
               <span className="font-bold text-indigo-400">{jobs.length}</span>{" "}
               matching job{jobs.length !== 1 ? "s" : ""}

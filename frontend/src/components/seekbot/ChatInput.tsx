@@ -62,28 +62,30 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className="border-t border-zinc-800 bg-zinc-950 px-4 pt-4 pb-3">
+    <div className="border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 pt-4 pb-3">
       {/* File preview */}
       {selectedFile && (
-        <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded-lg w-fit animate-in fade-in slide-in-from-bottom-1">
+        <div className="flex items-center gap-2 mb-2 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg w-fit animate-in fade-in slide-in-from-bottom-1">
           <Paperclip size={14} className="text-indigo-400" />
-          <span className="text-xs text-zinc-300 truncate max-w-[200px]">{selectedFile.name}</span>
-          <button 
+          <span className="text-xs text-zinc-700 dark:text-zinc-300 truncate max-w-[200px]">
+            {selectedFile.name}
+          </span>
+          <button
             onClick={removeFile}
-            className="p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
           >
             <Square size={10} fill="currentColor" />
           </button>
         </div>
       )}
 
-      <div className="flex items-end gap-3 bg-zinc-900 border border-zinc-700/60 rounded-2xl px-4 py-3 focus-within:border-zinc-500/80 transition-colors">
+      <div className="flex items-end gap-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-300/60 dark:border-zinc-700/60 rounded-2xl px-4 py-3 focus-within:border-zinc-400/80 dark:focus-within:border-zinc-500/80 transition-colors">
         {/* Attachment button */}
         <button
           type="button"
           onClick={handleFileClick}
           disabled={isLoading || disabled}
-          className="shrink-0 p-2 text-zinc-500 hover:text-zinc-300 disabled:opacity-30 transition-colors"
+          className="shrink-0 p-2 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-30 transition-colors"
           title="Attach image or document"
         >
           <Paperclip size={20} />
@@ -105,7 +107,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           rows={1}
           disabled={disabled || isLoading}
           style={{ minHeight: "24px", maxHeight: "160px" }}
-          className="flex-1 bg-transparent text-zinc-100 placeholder-zinc-500 text-sm resize-none outline-none leading-relaxed disabled:opacity-50"
+          className="flex-1 bg-transparent text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 text-sm resize-none outline-none leading-relaxed disabled:opacity-50"
         />
 
         {/* Send / Stop button */}
@@ -126,7 +128,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             className={`shrink-0 p-2 rounded-xl transition-all ${
               canSend
                 ? "bg-indigo-600 hover:bg-indigo-500 text-white"
-                : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
             }`}
           >
             <Send size={16} />
@@ -134,8 +136,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
         )}
       </div>
 
-      <p className="text-zinc-600 text-xs text-center mt-2">
-        {isLoading ? "Wait for the AI to finish or press stop" : "Press Enter to send · Shift+Enter for new line"}
+      <p className="text-zinc-400 dark:text-zinc-600 text-xs text-center mt-2">
+        {isLoading
+          ? "Wait for the AI to finish or press stop"
+          : "Press Enter to send · Shift+Enter for new line"}
       </p>
     </div>
   );

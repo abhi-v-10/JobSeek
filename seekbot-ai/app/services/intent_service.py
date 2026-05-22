@@ -1,7 +1,4 @@
-import re
 from app.services.openai_service import ask_ai
-
-
 
 
 def detect_intent_ai(message: str) -> str:
@@ -36,47 +33,78 @@ Return only the intent name.
         "market_insights",
         "skill_guidance",
         "project_suggestions",
-        "general_chat"
+        "general_chat",
     }
 
     return result if result in allowed else "general_chat"
 
+
 def detect_intent_rule(message: str) -> str | None:
     text = message.lower().strip()
 
+    # ── Job recommendation (must come before job_search) ─────────────────
+    recommendation_triggers = [
+        "recommend",
+        "suggest job",
+        "jobs for me",
+        "job for me",
+        "what jobs should",
+        "which jobs",
+        "best fit",
+        "suitable for me",
+        "based on my",
+        "my profile",
+        "match my skill",
+        "personalized",
+        "highest chance",
+        "chance of selection",
+        "best match",
+    ]
+    job_context = ["job", "jobs", "role", "position", "apply", "opening"]
+    if any(k in text for k in recommendation_triggers) and any(
+        k in text for k in job_context
+    ):
+        return "job_recommendation"
+
     job_keywords = [
-        "job", "jobs", "internship", "intern", "apply",
-        "vacancy", "hiring", "opening", "developer role"
+        "job",
+        "jobs",
+        "internship",
+        "intern",
+        "apply",
+        "vacancy",
+        "hiring",
+        "opening",
+        "developer role",
     ]
 
     resume_keywords = [
-        "resume", "cv", "ats", "improve my resume",
-        "analyze my resume", "review my resume", "review my cv",
-        "resume analysis", "resume review", "resume feedback",
-        "what skills do i have", "my skills", "skill analysis",
-        "career analysis", "rate my resume",
+        "resume",
+        "cv",
+        "ats",
+        "improve my resume",
+        "analyze my resume",
+        "review my resume",
+        "review my cv",
+        "resume analysis",
+        "resume review",
+        "resume feedback",
+        "what skills do i have",
+        "my skills",
+        "skill analysis",
+        "career analysis",
+        "rate my resume",
     ]
 
-    roadmap_keywords = [
-        "roadmap", "how do i become", "career path",
-        "how can i become"
-    ]
+    roadmap_keywords = ["roadmap", "how do i become", "career path", "how can i become"]
 
-    interview_keywords = [
-        "interview", "mock interview", "questions"
-    ]
+    interview_keywords = ["interview", "mock interview", "questions"]
 
-    market_keywords = [
-        "trend", "trending", "market", "salary", "demand"
-    ]
+    market_keywords = ["trend", "trending", "market", "salary", "demand"]
 
-    skill_keywords = [
-        "skill", "learn", "what should i learn"
-    ]
+    skill_keywords = ["skill", "learn", "what should i learn"]
 
-    project_keywords = [
-        "project", "projects", "portfolio"
-    ]
+    project_keywords = ["project", "projects", "portfolio"]
 
     if any(k in text for k in job_keywords):
         return "job_search"
@@ -101,6 +129,7 @@ def detect_intent_rule(message: str) -> str | None:
 
     return None
 
+
 def detect_intent(message: str) -> str:
     rule_result = detect_intent_rule(message)
 
@@ -113,9 +142,14 @@ def detect_intent(message: str) -> str:
     if ai_result in ("resume_analysis", "skill_analysis"):
         return "resume_review"
 
+    if ai_result == "job_recommendation":
+        return "job_recommendation"
+
     return ai_result
 
+
 INTENTS = [
+    "job_recommendation",
     "job_search",
     "resume_review",
     "career_roadmap",
@@ -123,5 +157,5 @@ INTENTS = [
     "market_insights",
     "skill_guidance",
     "project_suggestions",
-    "general_chat"
+    "general_chat",
 ]

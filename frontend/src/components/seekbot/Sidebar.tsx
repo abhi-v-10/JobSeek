@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Bot, Plus, MessageSquare, Trash2, Pencil, Check, X } from "lucide-react";
+import {
+  Bot,
+  Plus,
+  MessageSquare,
+  Trash2,
+  Pencil,
+  Check,
+  X,
+} from "lucide-react";
 import { chatService } from "../../services/chatService";
 import type { ChatSessionData } from "../../services/chatService";
 
@@ -66,7 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (confirm("Are you sure you want to delete this chat?")) {
       try {
         await chatService.deleteSession(id);
-        setLocalRefresh(prev => prev + 1);
+        setLocalRefresh((prev) => prev + 1);
         if (id === activeSessionId) onNewChat();
       } catch (err) {
         console.error("Failed to delete session", err);
@@ -86,7 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     try {
       await chatService.updateSession(editingId, editTitle);
       setEditingId(null);
-      setLocalRefresh(prev => prev + 1);
+      setLocalRefresh((prev) => prev + 1);
     } catch (err) {
       console.error("Failed to rename session", err);
     }
@@ -102,7 +110,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed md:relative inset-y-0 left-0 z-40 flex flex-col w-72 bg-zinc-950 border-r border-zinc-800 transition-transform duration-300 ease-in-out shrink-0 ${
+        className={`fixed md:relative inset-y-0 left-0 z-40 flex flex-col w-72 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 transition-transform duration-300 ease-in-out shrink-0 ${
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
@@ -113,7 +121,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
               <Bot size={16} className="text-white" />
             </div>
-            <span className="font-semibold text-zinc-100 text-lg">SeekBot</span>
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-lg">
+              SeekBot
+            </span>
           </div>
 
           {/* New Chat button */}
@@ -130,11 +140,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-zinc-800 mx-4" />
+        <div className="h-px bg-zinc-200 dark:bg-zinc-800 mx-4" />
 
         {/* Section label */}
         <div className="px-4 pt-3 pb-1.5">
-          <span className="text-xs font-medium text-zinc-600 uppercase tracking-wider">
+          <span className="text-xs font-medium text-zinc-400 dark:text-zinc-600 uppercase tracking-wider">
             Recent Chats
           </span>
         </div>
@@ -146,14 +156,17 @@ const Sidebar: React.FC<SidebarProps> = ({
               {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-14 bg-zinc-900 rounded-xl animate-pulse mb-1"
+                  className="h-14 bg-zinc-100 dark:bg-zinc-900 rounded-xl animate-pulse mb-1"
                 />
               ))}
             </>
           ) : sessions.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-2">
-              <MessageSquare size={20} className="text-zinc-700" />
-              <span className="text-zinc-600 text-xs">
+              <MessageSquare
+                size={20}
+                className="text-zinc-300 dark:text-zinc-700"
+              />
+              <span className="text-zinc-400 dark:text-zinc-600 text-xs">
                 No conversations yet
               </span>
             </div>
@@ -174,8 +187,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                     }}
                     className={`group relative w-full text-left flex items-start gap-3 px-3 py-3 rounded-xl transition-all cursor-pointer ${
                       isActive
-                        ? "bg-zinc-800/80 text-zinc-100"
-                        : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
+                        ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-zinc-100"
+                        : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-800 dark:hover:text-zinc-200"
                     }`}
                   >
                     <MessageSquare
@@ -183,7 +196,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       className={`mt-0.5 shrink-0 ${
                         isActive
                           ? "text-indigo-400"
-                          : "text-zinc-600 group-hover:text-zinc-400"
+                          : "text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-600 dark:group-hover:text-zinc-400"
                       }`}
                     />
                     <div className="flex-1 min-w-0 pr-12">
@@ -196,14 +209,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                             if (e.key === "Enter") handleRename(e);
                             if (e.key === "Escape") setEditingId(null);
                           }}
-                          className="w-full bg-zinc-950 border border-indigo-500 rounded px-1 text-sm outline-none"
+                          className="w-full bg-white dark:bg-zinc-950 border border-indigo-500 rounded px-1 text-sm outline-none"
                         />
                       ) : (
                         <>
                           <p className="text-sm font-medium truncate">
                             {session.title}
                           </p>
-                          <p className="text-xs text-zinc-600 mt-0.5">
+                          <p className="text-xs text-zinc-400 dark:text-zinc-600 mt-0.5">
                             {formatDate(session.updated_at)}
                           </p>
                         </>
@@ -211,16 +224,38 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </div>
 
                     {/* Actions - visible on hover or if active */}
-                    <div className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity ${isEditing ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                    <div
+                      className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 transition-opacity ${isEditing ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                    >
                       {isEditing ? (
                         <>
-                          <button onClick={handleRename} className="p-1 hover:text-green-400 text-zinc-500"><Check size={14}/></button>
-                          <button onClick={() => setEditingId(null)} className="p-1 hover:text-red-400 text-zinc-500"><X size={14}/></button>
+                          <button
+                            onClick={handleRename}
+                            className="p-1 hover:text-green-400 text-zinc-400 dark:text-zinc-500"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="p-1 hover:text-red-400 text-zinc-400 dark:text-zinc-500"
+                          >
+                            <X size={14} />
+                          </button>
                         </>
                       ) : (
                         <>
-                          <button onClick={(e) => startEditing(e, session)} className="p-1.5 hover:bg-zinc-700/50 rounded-lg text-zinc-500 hover:text-zinc-300 transition-colors"><Pencil size={12}/></button>
-                          <button onClick={(e) => handleDelete(e, session.id)} className="p-1.5 hover:bg-zinc-700/50 rounded-lg text-zinc-500 hover:text-red-400 transition-colors"><Trash2 size={12}/></button>
+                          <button
+                            onClick={(e) => startEditing(e, session)}
+                            className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700/50 rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                          >
+                            <Pencil size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => handleDelete(e, session.id)}
+                            className="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700/50 rounded-lg text-zinc-400 dark:text-zinc-500 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </>
                       )}
                     </div>
@@ -232,8 +267,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-zinc-800 shrink-0">
-          <p className="text-zinc-600 text-xs text-center">
+        <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 shrink-0">
+          <p className="text-zinc-400 dark:text-zinc-600 text-xs text-center">
             Powered by SeekBot AI
           </p>
         </div>

@@ -75,3 +75,30 @@ def fetch_user_resume(auth_token: str = None) -> dict:
 
     return response.json()
 
+
+def fetch_user_profile(auth_token: str = None) -> dict:
+    """
+    Fetch the authenticated user's full profile from Django.
+
+    Returns the ProfileSerializer payload which includes:
+    skills (list), parsed_resume (JSON), resume_text, full_name,
+    linkedin_url, github_url, user_type, etc.
+
+    Args:
+        auth_token: The user's Authorization header value (Bearer token).
+
+    Returns:
+        Profile dict, or empty dict on any error.
+    """
+    url = f"{DJANGO_API_BASE_URL}/users/profile/"
+    headers = {"Authorization": auth_token} if auth_token else {}
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+    except requests.exceptions.RequestException as exc:
+        raise RuntimeError(f"Failed to connect to Django API: {exc}") from exc
+
+    if not response.ok:
+        return {}
+
+    return response.json()

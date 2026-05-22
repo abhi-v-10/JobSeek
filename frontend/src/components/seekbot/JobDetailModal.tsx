@@ -39,11 +39,13 @@ interface InfoTileProps {
 }
 
 const InfoTile: React.FC<InfoTileProps> = ({ icon, label, value }) => (
-  <div className="bg-zinc-800/60 rounded-xl px-3 py-2.5 flex items-start gap-2">
+  <div className="bg-zinc-100 dark:bg-zinc-800/60 rounded-xl px-3 py-2.5 flex items-start gap-2">
     <span className="mt-0.5 shrink-0 text-zinc-500">{icon}</span>
     <div className="min-w-0">
       <p className="text-[10px] text-zinc-500 mb-0.5">{label}</p>
-      <p className="text-sm font-medium text-zinc-200 truncate">{value}</p>
+      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
+        {value}
+      </p>
     </div>
   </div>
 );
@@ -138,22 +140,25 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, onClose }) => {
       />
 
       {/* Modal panel */}
-      <div className="relative w-full sm:max-w-xl max-h-[90vh] sm:max-h-[82vh] flex flex-col bg-zinc-900 sm:rounded-2xl border border-zinc-700/50 shadow-2xl overflow-hidden rounded-t-2xl">
+      <div className="relative w-full sm:max-w-xl max-h-[90vh] sm:max-h-[82vh] flex flex-col bg-white dark:bg-zinc-900 sm:rounded-2xl border border-zinc-200 dark:border-zinc-700/50 shadow-2xl overflow-hidden rounded-t-2xl">
         {/* Header */}
-        <div className="shrink-0 flex items-start justify-between p-5 border-b border-zinc-800">
+        <div className="shrink-0 flex items-start justify-between p-5 border-b border-zinc-200 dark:border-zinc-800">
           <div className="flex-1 min-w-0 mr-3">
             {isLoading ? (
               <div className="space-y-2 animate-pulse">
-                <div className="h-4 bg-zinc-800 rounded w-3/4" />
-                <div className="h-3 bg-zinc-800 rounded w-1/2" />
+                <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-3/4" />
+                <div className="h-3 bg-zinc-200 dark:bg-zinc-800 rounded w-1/2" />
               </div>
             ) : (
               <>
-                <h2 className="text-base font-semibold text-zinc-100 leading-snug line-clamp-2">
+                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 leading-snug line-clamp-2">
                   {displayTitle}
                 </h2>
-                <div className="flex items-center gap-1.5 mt-1 text-sm text-zinc-400">
-                  <Building2 size={13} className="shrink-0 text-zinc-600" />
+                <div className="flex items-center gap-1.5 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                  <Building2
+                    size={13}
+                    className="shrink-0 text-zinc-400 dark:text-zinc-600"
+                  />
                   <span className="truncate">{displayCompany}</span>
                 </div>
               </>
@@ -161,7 +166,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, onClose }) => {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors shrink-0"
+            className="p-2 rounded-xl text-zinc-400 dark:text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
             aria-label="Close"
           >
             <X size={18} />
@@ -175,7 +180,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, onClose }) => {
               {[...Array(4)].map((_, i) => (
                 <div
                   key={i}
-                  className="h-14 bg-zinc-800 rounded-xl animate-pulse"
+                  className="h-14 bg-zinc-200 dark:bg-zinc-800 rounded-xl animate-pulse"
                 />
               ))}
             </div>
@@ -193,12 +198,12 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, onClose }) => {
                   {workModeCfg.label}
                 </span>
                 {empType && (
-                  <span className="text-xs px-3 py-1 rounded-full border border-zinc-700 text-zinc-300 bg-zinc-800">
+                  <span className="text-xs px-3 py-1 rounded-full border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800">
                     {empType}
                   </span>
                 )}
                 {fullJob.required_experience_years != null && (
-                  <span className="text-xs px-3 py-1 rounded-full border border-zinc-700 text-zinc-400 bg-zinc-800">
+                  <span className="text-xs px-3 py-1 rounded-full border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800">
                     {fullJob.required_experience_years}+ yrs exp
                   </span>
                 )}
@@ -240,7 +245,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, onClose }) => {
                     {skills.map((skill, i) => (
                       <span
                         key={i}
-                        className="text-xs px-2.5 py-1 bg-indigo-950/50 text-indigo-300 border border-indigo-800/40 rounded-lg font-mono"
+                        className="text-xs px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/40 rounded-lg font-mono"
                       >
                         {skill}
                       </span>
@@ -255,7 +260,7 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, onClose }) => {
                   <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
                     Description
                   </p>
-                  <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">
                     {fullJob.description}
                   </p>
                 </div>
@@ -265,10 +270,10 @@ const JobDetailModal: React.FC<JobDetailModalProps> = ({ job, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 flex gap-3 p-4 border-t border-zinc-800">
+        <div className="shrink-0 flex gap-3 p-4 border-t border-zinc-200 dark:border-zinc-800">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 text-sm font-medium text-zinc-400 bg-zinc-800 hover:bg-zinc-700 rounded-xl transition-colors"
+            className="flex-1 py-2.5 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition-colors"
           >
             Cancel
           </button>

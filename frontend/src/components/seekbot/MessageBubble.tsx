@@ -60,32 +60,34 @@ function renderFormattedContent(content: string) {
       elements.push(
         <div key={key++} className="flex items-start gap-2 mb-2 last:mb-0 ml-1">
           <span className="mt-2 w-1 h-1 rounded-full bg-indigo-500 shrink-0" />
-          <p className="text-[14px] text-zinc-300 leading-relaxed">
+          <p className="text-[14px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
             {renderInlineFormatting(bulletMatch[1])}
           </p>
-        </div>
+        </div>,
       );
       continue;
     }
 
     // Bold section headers
-    const sectionMatch = trimmed.match(/^\d+\.\s+\*\*([^*]+)\*\*:?\s*(.*)$/) || trimmed.match(/^\*\*([^*]+)\*\*:?\s*(.*)$/);
-    
+    const sectionMatch =
+      trimmed.match(/^\d+\.\s+\*\*([^*]+)\*\*:?\s*(.*)$/) ||
+      trimmed.match(/^\*\*([^*]+)\*\*:?\s*(.*)$/);
+
     if (sectionMatch) {
       const title = sectionMatch[1].trim();
       const rest = sectionMatch[2]?.trim();
-      
+
       elements.push(
         <div key={key++} className="mt-6 mb-3 first:mt-0 last:mb-0">
           <h4 className="text-[13px] font-black text-indigo-400 mb-1.5 uppercase tracking-tighter">
             {title}
           </h4>
           {rest && (
-            <p className="text-[14px] text-zinc-300 leading-relaxed">
+            <p className="text-[14px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
               {renderInlineFormatting(rest)}
             </p>
           )}
-        </div>
+        </div>,
       );
       continue;
     }
@@ -94,10 +96,10 @@ function renderFormattedContent(content: string) {
     elements.push(
       <p
         key={key++}
-        className="text-[15px] text-zinc-300 leading-relaxed mb-4 last:mb-0"
+        className="text-[15px] text-zinc-700 dark:text-zinc-300 leading-relaxed mb-4 last:mb-0"
       >
         {renderInlineFormatting(trimmed)}
-      </p>
+      </p>,
     );
   }
 
@@ -109,7 +111,7 @@ function renderInlineFormatting(text: string): React.ReactNode {
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <span key={i} className="font-bold text-zinc-100">
+        <span key={i} className="font-bold text-zinc-900 dark:text-zinc-100">
           {part.slice(2, -2)}
         </span>
       );
@@ -118,7 +120,7 @@ function renderInlineFormatting(text: string): React.ReactNode {
       return (
         <code
           key={i}
-          className="px-1.5 py-0.5 bg-indigo-500/10 text-indigo-300 rounded border border-indigo-500/20 text-xs font-mono"
+          className="px-1.5 py-0.5 bg-indigo-500/10 text-indigo-500 dark:text-indigo-300 rounded border border-indigo-500/20 text-xs font-mono"
         >
           {part.slice(1, -1)}
         </code>
@@ -137,16 +139,17 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   skipAnimation = false,
 }) => {
   const isUser = role === "user";
-  
+
   // We only want to animate typing for the very last assistant message if it's currently "active" and not historical
-  const shouldAnimate = !isUser && isLast && !skipAnimation && content.length > 0;
+  const shouldAnimate =
+    !isUser && isLast && !skipAnimation && content.length > 0;
   const typedContent = useTypewriter(content, shouldAnimate);
 
   // ── User message — bubble only ───────────────────────────────────────────
   if (isUser) {
     return (
       <div className="flex justify-end mb-4">
-        <div className="max-w-[80%] px-5 py-3 text-[15px] leading-relaxed bg-zinc-800 text-zinc-100 rounded-2xl rounded-tr-sm border border-zinc-700/30 shadow-sm">
+        <div className="max-w-[80%] px-5 py-3 text-[15px] leading-relaxed bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-2xl rounded-tr-sm border border-zinc-300/30 dark:border-zinc-700/30 shadow-sm">
           <p className="whitespace-pre-wrap break-words">{content}</p>
         </div>
       </div>
@@ -168,14 +171,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   // ── Assistant: ChatGPT styled (No bubble, rich text) ──────────────────────
   return (
     <div className="flex items-start gap-4 mb-8 group">
-      <div className="shrink-0 w-8 h-8 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 flex items-center justify-center group-hover:border-zinc-700 transition-colors shadow-sm mt-1">
+      <div className="shrink-0 w-8 h-8 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 flex items-center justify-center group-hover:border-zinc-400 dark:group-hover:border-zinc-700 transition-colors shadow-sm mt-1">
         <Bot size={18} />
       </div>
-      
+
       <div className="flex-1 min-w-0 max-w-[85%]">
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
           {renderFormattedContent(typedContent)}
-          
+
           {/* Typing cursor if animating */}
           {shouldAnimate && typedContent.length < content.length && (
             <span className="inline-block w-2 h-4 bg-indigo-500 ml-1 animate-pulse align-middle" />

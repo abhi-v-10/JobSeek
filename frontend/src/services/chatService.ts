@@ -1,3 +1,5 @@
+import { logout } from "../utils/authUtils";
+
 // ── Structured job data returned by the search tool ───────────────────────────
 export interface JobSearchResult {
   id: number;
@@ -83,11 +85,26 @@ function getAuthHeaders(): Record<string, string> {
   };
 }
 
+/**
+ * Wrapper around fetch that automatically logs the user out on a 401 response
+ * (expired / invalid / revoked token).
+ */
+async function authFetch(
+  input: RequestInfo,
+  init?: RequestInit,
+): Promise<Response> {
+  const response = await fetch(input, init);
+  if (response.status === 401) {
+    logout();
+  }
+  return response;
+}
+
 // ── Service object ─────────────────────────────────────────────────────────────
 export const chatService = {
   /** Create a new chat session in Django. */
   async createSession(title: string = "New Chat"): Promise<ChatSessionData> {
-    const response = await fetch(`${DJANGO_BASE}/chat/sessions/`, {
+    const response = await authFetch(`${DJANGO_BASE}/chat/sessions/`, {
       method: "POST",
       headers: getAuthHeaders(),
       body: JSON.stringify({ title }),
@@ -102,7 +119,7 @@ export const chatService = {
 
   /** List all sessions for the current user. Handles both paginated and plain-array responses. */
   async getSessions(): Promise<ChatSessionData[]> {
-    const response = await fetch(`${DJANGO_BASE}/chat/sessions/`, {
+    const response = await authFetch(`${DJANGO_BASE}/chat/sessions/`, {
       method: "GET",
       headers: getAuthHeaders(),
     });
@@ -120,7 +137,7 @@ export const chatService = {
 
   /** Retrieve all messages for a session from Django. */
   async getMessages(sessionId: string): Promise<ChatMessageData[]> {
-    const response = await fetch(
+    const response = await authFetch(
       `${DJANGO_BASE}/chat/sessions/${sessionId}/messages/`,
       {
         method: "GET",
@@ -151,10 +168,13 @@ export const chatService = {
 
   /** Delete a chat session. */
   async deleteSession(sessionId: string): Promise<void> {
-    const response = await fetch(`${DJANGO_BASE}/chat/sessions/${sessionId}/`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
+    const response = await authFetch(
+      `${DJANGO_BASE}/chat/sessions/${sessionId}/`,
+      {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      },
+    );
     if (!response.ok) {
       throw new Error("Failed to delete session");
     }
@@ -162,14 +182,17 @@ export const chatService = {
 
   /** Update chat session title. */
   async updateSession(sessionId: string, title: string): Promise<void> {
-    const response = await fetch(`${DJANGO_BASE}/chat/sessions/${sessionId}/`, {
-      method: "PATCH",
-      headers: {
-        ...getAuthHeaders(),
-        "Content-Type": "application/json",
+    const response = await authFetch(
+      `${DJANGO_BASE}/chat/sessions/${sessionId}/`,
+      {
+        method: "PATCH",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title }),
       },
-      body: JSON.stringify({ title }),
-    });
+    );
     if (!response.ok) {
       throw new Error("Failed to update session title");
     }
@@ -193,7 +216,7 @@ export const chatService = {
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    const response = await fetch(`${FASTAPI_BASE}/chat/`, {
+    const response = await authFetch(`${FASTAPI_BASE}/chat/`, {
       method: "POST",
       headers,
       body: formData,
@@ -209,7 +232,7 @@ export const chatService = {
 
   /** Fetch full job details from Django's JobSerializer (all fields including description, salary, etc.). */
   async getJobDetail(jobId: number): Promise<FullJobData> {
-    const response = await fetch(`${DJANGO_BASE}/jobs/${jobId}/`, {
+    const response = await authFetch(`${DJANGO_BASE}/jobs/${jobId}/`, {
       method: "GET",
       headers: getAuthHeaders(),
     });

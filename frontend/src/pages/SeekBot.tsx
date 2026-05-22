@@ -63,7 +63,8 @@ const SeekBot: React.FC = () => {
     setError(null);
   }, []);
 
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [abortController, setAbortController] =
+    useState<AbortController | null>(null);
   const [isStopping, setIsStopping] = useState(false);
 
   // ── Stop the ongoing AI request ─────────────────────────────────────────────
@@ -93,7 +94,10 @@ const SeekBot: React.FC = () => {
     setAbortController(controller);
 
     // Optimistic: show user message immediately
-    setMessages((prev) => [...prev, { role: "user", content: text || "Sent a file" }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: text || "Sent a file" },
+    ]);
 
     try {
       let currentSessionId = sessionId;
@@ -101,7 +105,9 @@ const SeekBot: React.FC = () => {
       // First message → create a new Django session
       if (!currentSessionId) {
         // Generate AI title from first message
-        const title = await chatService.generateTitle(text || "New File Analysis");
+        const title = await chatService.generateTitle(
+          text || "New File Analysis",
+        );
         const session = await chatService.createSession(title);
         currentSessionId = session.id;
         setSessionId(currentSessionId);
@@ -109,14 +115,20 @@ const SeekBot: React.FC = () => {
       }
 
       // Forward message and file to the FastAPI AI engine
-      const response = await chatService.sendMessage(currentSessionId, text, controller.signal, selectedFile);
+      const response = await chatService.sendMessage(
+        currentSessionId,
+        text,
+        controller.signal,
+        selectedFile,
+      );
 
       const assistantMsg: Message = {
         role: "assistant",
         content: response.message.content,
         messageType: response.message.type,
         jobs:
-          response.message.type === "jobs" && Array.isArray(response.message.data)
+          response.message.type === "jobs" &&
+          Array.isArray(response.message.data)
             ? response.message.data
             : undefined,
       };
@@ -128,7 +140,10 @@ const SeekBot: React.FC = () => {
         console.log("Request aborted by user");
         return;
       }
-      const msg = err instanceof Error && err.message ? err.message : "Something went wrong. Please try again.";
+      const msg =
+        err instanceof Error && err.message
+          ? err.message
+          : "Something went wrong. Please try again.";
       setError(msg);
     } finally {
       setIsLoading(false);
@@ -145,7 +160,7 @@ const SeekBot: React.FC = () => {
         overflow-hidden ensures the internal panels scroll, not the page itself.
       */}
       <div
-        className="flex overflow-hidden bg-zinc-950"
+        className="flex overflow-hidden bg-white dark:bg-zinc-950"
         style={{ height: "calc(100vh - 4rem)" }}
       >
         {/* ── Left Sidebar ── */}
@@ -161,15 +176,17 @@ const SeekBot: React.FC = () => {
         {/* ── Right: Chat area ── */}
         <div className="flex flex-col flex-1 overflow-hidden min-w-0">
           {/* Mobile top bar (only visible on small screens) */}
-          <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-zinc-800 bg-zinc-950 shrink-0">
+          <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="p-2 rounded-xl text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+              className="p-2 rounded-xl text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               aria-label="Open chat history"
             >
               <Menu size={20} />
             </button>
-            <span className="text-sm font-medium text-zinc-300">SeekBot</span>
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              SeekBot
+            </span>
           </div>
 
           {/* Error banner */}

@@ -38,8 +38,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
     const container = scrollRef.current;
     if (!container) return;
 
-    const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
-    
+    const isAtBottom =
+      container.scrollHeight - container.scrollTop <=
+      container.clientHeight + 100;
+
     if (isAtBottom || isLoading) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -49,7 +51,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
     const container = scrollRef.current;
     if (!container) return;
 
-    const isNearBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 150;
+    const isNearBottom =
+      container.scrollHeight - container.scrollTop <=
+      container.clientHeight + 150;
     setShowScrollArrow(!isNearBottom);
   };
 
@@ -72,7 +76,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
             <div className="w-16 h-16 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center mb-4">
               <Bot size={28} className="text-indigo-400" />
             </div>
-            <h2 className="text-xl font-semibold text-zinc-200 mb-2">
+            <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 mb-2">
               How can I help you today?
             </h2>
             <p className="text-zinc-500 text-sm max-w-xs mb-6">
@@ -83,7 +87,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
               {SUGGESTIONS.map((chip) => (
                 <div
                   key={chip}
-                  className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-300 rounded-xl px-4 py-3 text-sm text-zinc-500 text-left transition-colors cursor-default select-none"
+                  className="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300 rounded-xl px-4 py-3 text-sm text-zinc-500 text-left transition-colors cursor-default select-none"
                 >
                   {chip}
                 </div>
@@ -105,10 +109,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, isLoading }) => {
                 );
               }
               return (
-                <MessageBubble 
-                  key={i} 
-                  role={msg.role} 
-                  content={msg.content} 
+                <MessageBubble
+                  key={i}
+                  role={msg.role}
+                  content={msg.content}
                   messageType={msg.messageType}
                   isLast={isLast}
                   skipAnimation={msg.skipAnimation}
