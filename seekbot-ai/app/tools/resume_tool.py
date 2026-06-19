@@ -11,14 +11,16 @@ Architecture:
 
 import logging
 
-from openai import OpenAI
+# from openai import OpenAI
+from app.core.openai_client import generate_chat_completion
 
-from app.core.config import OPENAI_API_KEY
+# from app.core.config import OPENAI_API_KEY
 from app.services.django_service import fetch_user_resume
 
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+# client = OpenAI(api_key=OPENAI_API_KEY)
+# client = InferenceClient(provider="hf-inference", api_key=HF_TOKEN)
 
 
 # ---------------------------------------------------------------------------
@@ -27,15 +29,9 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 RESUME_ANALYSIS_PROMPT = """
 You are SeekBot, a modern AI career mentor for JobSeek.
+You will be provided with the user's resume and their message.
 
-Goal: deliver a concise, human-like resume analysis that feels smart, practical, and personalized.
-
-Tone and style:
-- Conversational but professional. Sound like a helpful senior developer friend.
-- No report-like or HR wording. Avoid robotic phrases.
-- Short lines. No big paragraphs. Keep it to 10-15 short lines.
-
-Output flow (in this exact order, but without headings):
+If the user is asking for a general resume review or analysis, provide it using this exact structure (no headings):
 1) Short conversational opening (1-2 lines).
 2) Best-fit roles (2-4 roles).
 3) Strengths (2-4 bullets).
@@ -43,13 +39,13 @@ Output flow (in this exact order, but without headings):
 5) Next skills or projects (2-4 bullets).
 6) Short final recommendation (1 line).
 
-Formatting rules:
+Formatting rules for general review:
 - Plain text only. No markdown headings, no numbered headings, no emojis.
 - Use short bullets for lists.
 - Use direct second-person language ("you", "your").
 - Keep tech names in plain text (no inline code formatting).
-- If the resume is thin, be honest but supportive.
-- Do not stop mid-sentence. Ensure the response is complete.
+
+HOWEVER, if the user asks a specific question (e.g., "what projects do I have?", "do I know python?"), DO NOT provide the general analysis. Instead, just answer their specific question directly based on their resume. Keep it concise, conversational, and helpful.
 """
 
 
@@ -90,24 +86,27 @@ def fetch_resume(auth_token: str = None) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def analyze_resume(resume_text: str) -> str:
+def analyze_resume(resume_text: str, user_message: str = None) -> str:
     """
-    Send the resume text to OpenAI for structured career analysis.
+    Send the resume text and user message to AI for analysis or Q&A.
 
     Args:
         resume_text: Plaintext content of the user's resume.
+        user_message: The query the user asked.
 
     Returns:
         Formatted analysis string ready for chat display.
     """
+    
+    user_query = user_message or "Please analyze my resume."
+    
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = generate_chat_completion(
             messages=[
                 {"role": "system", "content": RESUME_ANALYSIS_PROMPT},
                 {
                     "role": "user",
-                    "content": f"Here is the candidate's resume:\n\n{resume_text}",
+                    "content": f"Here is the candidate's resume:\n\n{resume_text}\n\nUser Message: {user_query}",
                 },
             ],
             temperature=0.3,
@@ -127,7 +126,7 @@ def analyze_resume(resume_text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def run(auth_token: str = None) -> str:
+def run(message: str = None, auth_token: str = None) -> str:
     """
     Main entry point for the resume analysis tool.
 
@@ -165,6 +164,6 @@ def run(auth_token: str = None) -> str:
         )
 
     # Step 3 — Analyze
-    analysis = analyze_resume(resume_text)
+    analysis = analyze_resume(resume_text, user_message=message)
 
     return analysis

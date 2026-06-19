@@ -14,6 +14,7 @@ interview_prep
 market_insights
 skill_guidance
 project_suggestions
+application_strategy
 general_chat
 
 Message: {message}
@@ -33,6 +34,7 @@ Return only the intent name.
         "market_insights",
         "skill_guidance",
         "project_suggestions",
+        "application_strategy",
         "general_chat",
     }
 
@@ -41,6 +43,22 @@ Return only the intent name.
 
 def detect_intent_rule(message: str) -> str | None:
     text = message.lower().strip()
+
+    # ── Application Strategy (must come before job_recommendation) ───────────
+    strategy_triggers = [
+        "what jobs should i apply for first",
+        "which jobs should i prioritize",
+        "which opportunities should i prioritize",
+        "create an application strategy",
+        "am i ready to apply",
+        "what should i focus on before applying",
+        "what jobs should i apply to this week",
+        "realistic for me",
+        "what should i learn before applying",
+        "application priorities",
+    ]
+    if any(k in text for k in strategy_triggers):
+        return "application_strategy"
 
     # ── Job recommendation (must come before job_search) ─────────────────
     recommendation_triggers = [
@@ -59,6 +77,7 @@ def detect_intent_rule(message: str) -> str | None:
         "highest chance",
         "chance of selection",
         "best match",
+        "show"
     ]
     job_context = ["job", "jobs", "role", "position", "apply", "opening"]
     if any(k in text for k in recommendation_triggers) and any(
@@ -98,13 +117,25 @@ def detect_intent_rule(message: str) -> str | None:
 
     roadmap_keywords = ["roadmap", "how do i become", "career path", "how can i become"]
 
-    interview_keywords = ["interview", "mock interview", "questions"]
+    interview_keywords = [
+        "interview",
+        "mock interview",
+        "questions",
+        "prepare me",
+        "interview prep",
+        "prepare for",
+        "practice interview",
+        "conduct a technical interview",
+    ]
 
     market_keywords = ["trend", "trending", "market", "salary", "demand"]
 
     skill_keywords = ["skill", "learn", "what should i learn"]
 
     project_keywords = ["project", "projects", "portfolio"]
+
+    if any(k in text for k in interview_keywords):
+        return "interview_prep"
 
     if any(k in text for k in job_keywords):
         return "job_search"
@@ -114,9 +145,6 @@ def detect_intent_rule(message: str) -> str | None:
 
     if any(k in text for k in roadmap_keywords):
         return "career_roadmap"
-
-    if any(k in text for k in interview_keywords):
-        return "interview_prep"
 
     if any(k in text for k in market_keywords):
         return "market_insights"
@@ -157,5 +185,6 @@ INTENTS = [
     "market_insights",
     "skill_guidance",
     "project_suggestions",
+    "application_strategy",
     "general_chat",
 ]

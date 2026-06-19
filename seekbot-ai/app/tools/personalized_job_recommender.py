@@ -1,8 +1,8 @@
 """
 Personalized Job Recommender for SeekBot AI.
 
-Recommends the most suitable jobs for a user based on their profile,
-resume, skills, projects, and career goals.  All match scoring is
+Finds and ranks matching jobs for a user based on their profile,
+resume, skills, projects, and career goals. All match scoring is
 deterministic and transparent.  OpenAI is invoked exactly once (batch)
 to generate human-readable explanations, guidance, and next steps.
 
@@ -35,8 +35,8 @@ import re
 from typing import Any, Optional
 
 import requests
-from app.core.config import DJANGO_API_BASE_URL, DJANGO_INTERNAL_TOKEN, OPENAI_API_KEY
-from openai import OpenAI
+from app.core.config import DJANGO_API_BASE_URL, DJANGO_INTERNAL_TOKEN
+from app.core.openai_client import generate_chat_completion
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -45,8 +45,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Module-level singletons
 # ---------------------------------------------------------------------------
-
-_openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Sent on every internal SeekBot → Django request so Django can identify
 # (and optionally rate-limit) calls from this service.
@@ -78,7 +76,7 @@ _THRESHOLD_STRETCH: float = 50.0
 _MAX_FETCH: int = 100
 
 # OpenAI settings (consistent with the rest of the project).
-_AI_MODEL: str = "gpt-4o-mini"
+_AI_MODEL: str = "Qwen/Qwen3-14B"
 _AI_TEMPERATURE: float = 0.3
 _AI_MAX_TOKENS_INSIGHTS: int = 3000
 _AI_MAX_TOKENS_SUMMARY: int = 600

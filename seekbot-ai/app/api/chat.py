@@ -9,7 +9,7 @@ from app.services.django_service import (
 )
 from app.services.intent_service import detect_intent
 from app.services.openai_service import ask_ai, generate_chat_title
-from app.tools import job_tool, resume_tool
+from app.tools import interview_tool, job_tool, resume_tool, application_strategy_tool
 from app.tools.personalized_job_recommender import recommend_jobs_for_user
 from app.utils.file_parser import encode_image, extract_text_from_file
 from fastapi import APIRouter, File, Form, Header, UploadFile
@@ -85,9 +85,16 @@ async def chat(
     # ── Dispatch ──────────────────────────────────────────────────────────────
     ai_reply: str = ""
     message_type: str = "text"
-    job_data: Optional[list] = None
+    job_data: Optional[object] = None
 
-    if intent == "job_recommendation":
+    if intent == "application_strategy":
+        ai_reply, message_type, job_data = _handle_application_strategy(
+            session_id=session_id,
+            message=message,
+            authorization=authorization,
+        )
+
+    elif intent == "job_recommendation":
         ai_reply, message_type, job_data = _handle_job_recommendation(
             session_id=session_id,
             message=message,
@@ -102,8 +109,16 @@ async def chat(
 
     elif intent == "resume_review":
         log_tool_call(session_id, "resume_review")
-        ai_reply = resume_tool.run(auth_token=authorization)
+        ai_reply = resume_tool.run(message=message, auth_token=authorization)
         message_type = "resume_feedback"
+
+    elif intent == "interview_prep":
+        ai_reply, message_type, job_data = _handle_interview_prep(
+            session_id=session_id,
+            message=message,
+            authorization=authorization,
+            file_context=file_context,
+        )
 
     else:
         log_tool_call(session_id, "general_ai", f"intent={intent}")
@@ -124,7 +139,7 @@ async def chat(
         role="assistant",
         content=ai_reply,
         message_type=message_type,
-        metadata={"jobs": job_data} if job_data else {},
+        metadata=_build_metadata(message_type, job_data),
         auth_token=authorization,
     )
 
@@ -220,3 +235,141 @@ def _handle_job_recommendation(
     ]
 
     return ai_reply, "jobs", job_data
+
+
+def _build_metadata(message_type: str, data: Optional[object]) -> dict:
+    """Map message payloads into Django metadata by type."""
+    if not data:
+        return {}
+    if message_type == "jobs":
+        return {"jobs": data}
+    if message_type == "interview":
+        return {"interview": data}
+    return {}
+
+
+# ---------------------------------------------------------------------------
+# Interview preparation handler
+# ---------------------------------------------------------------------------
+
+
+def _handle_interview_prep(
+    session_id: str,
+    message: str,
+    authorization: Optional[str],
+    file_context: Optional[str] = None,
+) -> tuple[str, str, Optional[dict]]:
+    """
+    Generate a structured interview preparation payload and a concise summary.
+
+    Returns:
+        (ai_reply: str, message_type: str, interview_data: dict | None)
+    """
+    user_profile: dict = {}
+    if authorization:
+        try:
+            user_profile = fetch_user_profile(auth_token=authorization) or {}
+        except Exception:
+            user_profile = {}
+
+    log_tool_call(session_id, "interview_prep")
+
+    target_role = message
+    experience_level = None
+    if isinstance(user_profile, dict):
+        experience_level = user_profile.get("experience_level")
+
+    interview_payload = interview_tool.prepare_interview(
+        target_role=target_role,
+        user_profile=user_profile,
+        resume_text=user_profile.get("resume_text"),
+        job_description=file_context,
+        experience_level=experience_level,
+        focus_area=None,
+        question_count=10,
+    )
+
+    summary_lines = [interview_payload.preparation_summary]
+    if interview_payload.recommended_topics_to_study:
+        topics = ", ".join(interview_payload.recommended_topics_to_study[:5])
+        summary_lines.append(f"Focus topics: {topics}.")
+    if interview_payload.final_tips:
+        summary_lines.append(f"Tip: {interview_payload.final_tips[0]}")
+
+    return (
+        "\n".join(summary_lines),
+        "interview",
+        interview_payload.model_dump(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Application strategy handler
+# ---------------------------------------------------------------------------
+
+
+def _handle_application_strategy(
+    session_id: str,
+    message: str,
+    authorization: Optional[str],
+) -> tuple[str, str, Optional[list]]:
+    """
+    Fetch the user's profile, get job recommendations, and
+    generate a strategic application plan.
+
+    Returns:
+        (ai_reply: str, message_type: str, job_data: list | None)
+    """
+    log_tool_call(session_id, "application_strategy_tool")
+
+    user_profile: dict = {}
+    if authorization:
+        try:
+            user_profile = fetch_user_profile(auth_token=authorization) or {}
+        except Exception:
+            pass
+
+    # ── Fetch recommended jobs to base strategy on ───────────────────────────
+    recommendations = recommend_jobs_for_user(
+        user_profile=user_profile,
+        resume_text=user_profile.get("resume_text"),
+        user_query=message,
+        limit=10,
+    )
+
+    # Convert Pydantic models to dicts for the strategy tool
+    jobs_dicts = []
+    for job in recommendations.recommended_jobs:
+        job_dict = job.model_dump()
+        job_dict["id"] = job.job_id
+        job_dict["required_skills"] = job.matching_skills + job.missing_skills
+        jobs_dicts.append(job_dict)
+
+    target_role = user_profile.get("target_role") or "Your Next Role"
+
+    # ── Generate application strategy ─────────────────────────────────────────
+    strategy = application_strategy_tool.generate_application_strategy(
+        user_profile=user_profile,
+        resume_text=user_profile.get("resume_text"),
+        recommended_jobs=jobs_dicts,
+        target_role=target_role,
+    )
+
+    ai_reply = application_strategy_tool.format_application_strategy(strategy)
+
+    # ── Map RecommendedJob → JobSearchResult format for the frontend ─────────
+    job_data = [
+        {
+            "id": job.job_id,
+            "title": job.title,
+            "company_name": job.company,
+            "location": job.location,
+            "is_remote": job.is_remote,
+            "job_type": "corporate",
+            "skills": (", ".join(job.matching_skills + job.missing_skills) or None),
+            "created_at": job.created_at,
+        }
+        for job in recommendations.recommended_jobs
+    ]
+
+    return ai_reply, "text", job_data

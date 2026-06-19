@@ -1,7 +1,9 @@
-from openai import OpenAI
-from app.core.config import OPENAI_API_KEY
+# from openai import OpenAI
+# from app.core.config import OPENAI_API_KEY
+from app.core.openai_client import generate_chat_completion
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+# client = OpenAI(api_key=OPENAI_API_KEY)
+# client = InferenceClient(provider="hf-inference", api_key=HF_TOKEN)
 
 
 SYSTEM_PROMPT = """
@@ -61,8 +63,7 @@ def ask_ai(current_message: str, history=None, file_context: str = None, image_b
         "content": user_content if (image_base64 or file_context) else current_message
     })
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
+    response = generate_chat_completion(
         messages=messages,
         temperature=0.4,
         max_tokens=1000
@@ -73,8 +74,7 @@ def ask_ai(current_message: str, history=None, file_context: str = None, image_b
 def generate_chat_title(first_message: str):
     """Generate a concise 2-3 word title for a chat session."""
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = generate_chat_completion(
             messages=[
                 {"role": "system", "content": "Generate a concise 2-3 word title for a chat based on the user message. No quotes, no periods."},
                 {"role": "user", "content": first_message}

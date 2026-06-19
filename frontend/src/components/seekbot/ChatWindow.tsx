@@ -12,6 +12,8 @@ export interface Message {
   messageType?: string;
   /** Structured job list — populated when messageType === 'jobs' */
   jobs?: JobSearchResult[];
+  /** Interview prep payload when messageType === 'interview' */
+  interviewData?: import("../../services/chatService").InterviewPrepPayload;
   /** If true, the message will skip any entrance animations (like typewriter) */
   skipAnimation?: boolean;
 }

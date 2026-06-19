@@ -39,11 +39,20 @@ const SeekBot: React.FC = () => {
               ? ((m.metadata as Record<string, unknown>)
                   .jobs as import("../services/chatService").JobSearchResult[])
               : undefined;
+          const metaInterview =
+            m.message_type === "interview" &&
+            m.metadata &&
+            (m.metadata as Record<string, unknown>).interview &&
+            typeof (m.metadata as Record<string, unknown>).interview === "object"
+              ? ((m.metadata as Record<string, unknown>)
+                  .interview as import("../services/chatService").InterviewPrepPayload)
+              : undefined;
           return {
             role: m.role as "user" | "assistant",
             content: m.content,
             messageType: m.message_type,
             jobs: metaJobs,
+            interviewData: metaInterview,
             skipAnimation: true,
           };
         });
@@ -130,6 +139,13 @@ const SeekBot: React.FC = () => {
           response.message.type === "jobs" &&
           Array.isArray(response.message.data)
             ? response.message.data
+            : undefined,
+        interviewData:
+          response.message.type === "interview" &&
+          response.message.data &&
+          !Array.isArray(response.message.data) &&
+          typeof response.message.data === "object"
+            ? (response.message.data as import("../services/chatService").InterviewPrepPayload)
             : undefined,
       };
       setMessages((prev) => [...prev, assistantMsg]);

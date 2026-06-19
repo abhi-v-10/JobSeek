@@ -2,8 +2,24 @@ from app.api.chat import router as chat_router
 from app.api.health import router as health_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
+from contextlib import asynccontextmanager
+from app.core.openai_client import generate_chat_completion
 
-app = FastAPI(title="SeekBot AI", version="1.0.0", description="AI Agent for JobSeek")
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup validation
+    try:
+        logger.info("Performing startup model validation...")
+        generate_chat_completion([{"role": "user", "content": "ping"}], max_tokens=10)
+        logger.info("Startup model validation successful.")
+    except Exception as e:
+        logger.critical(f"Startup model validation failed: {e}")
+    yield
+
+app = FastAPI(title="SeekBot AI", version="1.0.0", description="AI Agent for JobSeek", lifespan=lifespan)
 
 # ── CORS ───────────────────────────────────────────────────────────────────────
 # The browser sends a preflight OPTIONS request before every cross-origin POST.

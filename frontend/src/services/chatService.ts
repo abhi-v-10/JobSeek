@@ -61,6 +61,37 @@ export interface ChatMessageData {
   created_at: string;
 }
 
+export interface InterviewPrepPayload {
+  target_role: string;
+  experience_level?: string | null;
+  preparation_summary: string;
+  strengths: string[];
+  weaknesses: Array<{
+    skill: string;
+    severity: string;
+    recommendation: string;
+  }>;
+  recommended_topics_to_study: string[];
+  interview_questions: Array<{
+    question: string;
+    category: string;
+    difficulty: string;
+    expected_topics: string[];
+    why_this_is_important: string;
+  }>;
+  preparation_plan: Array<{
+    day: number;
+    focus_topics: string[];
+    practice_tasks: string[];
+    estimated_study_time: string;
+  }>;
+  mock_interview_rounds: Array<{
+    round_name: string;
+    questions: InterviewPrepPayload["interview_questions"];
+  }>;
+  final_tips: string[];
+}
+
 // ── FastAPI response shape ─────────────────────────────────────────────────────
 export interface SendMessageResponse {
   success: boolean;
@@ -69,7 +100,7 @@ export interface SendMessageResponse {
     type: string;
     content: string;
     /** Structured job list when type === 'jobs', null otherwise */
-    data?: JobSearchResult[] | null;
+    data?: JobSearchResult[] | InterviewPrepPayload | null;
   };
 }
 
