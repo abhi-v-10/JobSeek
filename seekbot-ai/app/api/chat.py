@@ -9,7 +9,7 @@ from app.services.django_service import (
 )
 from app.services.intent_service import detect_intent
 from app.services.openai_service import ask_ai, generate_chat_title
-from app.tools import interview_tool, job_tool, resume_tool, application_strategy_tool
+from app.tools import interview_tool, job_tool, resume_tool, application_strategy_tool, career_progress_tool
 from app.tools.personalized_job_recommender import recommend_jobs_for_user
 from app.utils.file_parser import encode_image, extract_text_from_file
 from fastapi import APIRouter, File, Form, Header, UploadFile
@@ -100,6 +100,15 @@ async def chat(
             message=message,
             authorization=authorization,
         )
+
+    elif intent == "career_progress":
+        log_tool_call(session_id, "career_progress_tool")
+        ai_reply = career_progress_tool.generate_career_progress(
+            session_id=session_id,
+            message=message,
+            authorization=authorization,
+        )
+        message_type = "text"
 
     elif intent == "job_search":
         log_tool_call(session_id, "job_search", f'query="{message[:60]}"')

@@ -52,10 +52,12 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
     'channels',
-    'users',
-    'jobs',
-    'messaging',
-    'ai_chat',
+    'apps.users',
+    'apps.jobs',
+    'apps.messaging',
+    'apps.ai_chat',
+    'apps.applications',
+    'django_filters',
 ]
 
 ASGI_APPLICATION = 'config.asgi.application'
@@ -80,7 +82,7 @@ MIDDLEWARE = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "users.auth.KeyRotationJWTAuthentication",
+        "apps.users.auth.KeyRotationJWTAuthentication",
     ),
 }
 
@@ -105,8 +107,8 @@ AUTHENTICATION_BACKENDS = [
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 ACCOUNT_LOGIN_METHODS = {'email'}
-ACCOUNT_ADAPTER = 'users.adapters.AccountAdapter'
-SOCIALACCOUNT_ADAPTER = 'users.adapters.SocialAccountAdapter'
+ACCOUNT_ADAPTER = 'apps.users.adapters.AccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'apps.users.adapters.SocialAccountAdapter'
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 ACCOUNT_UNIQUE_EMAIL = True

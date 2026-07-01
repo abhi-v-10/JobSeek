@@ -21,6 +21,19 @@ def test_intent_application_strategy():
         intent = detect_intent(q)
         assert intent == "application_strategy", f"Failed for query '{q}', got {intent}"
 
+def test_intent_career_progress():
+    queries = [
+        "How is my placement preparation going?",
+        "How am I doing?",
+        "Show my career progress.",
+        "Am I ready for placement?",
+        "What is my progress?",
+        "placement progress"
+    ]
+    for q in queries:
+        intent = detect_intent(q)
+        assert intent == "career_progress", f"Failed for query '{q}', got {intent}"
+
 def test_intent_job_recommendation():
     queries = [
         "Recommend jobs for me",
@@ -36,6 +49,7 @@ def test_intent_job_recommendation():
 
 def run_tests():
     test_intent_application_strategy()
+    test_intent_career_progress()
     
     assert detect_intent("Recommend jobs for me") == "job_recommendation"
     

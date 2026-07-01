@@ -12,9 +12,9 @@ skill_analysis
 career_roadmap
 interview_prep
 market_insights
-skill_guidance
 project_suggestions
 application_strategy
+career_progress
 general_chat
 
 Message: {message}
@@ -35,6 +35,7 @@ Return only the intent name.
         "skill_guidance",
         "project_suggestions",
         "application_strategy",
+        "career_progress",
         "general_chat",
     }
 
@@ -43,6 +44,20 @@ Return only the intent name.
 
 def detect_intent_rule(message: str) -> str | None:
     text = message.lower().strip()
+
+    # ── Career Progress / Placement Preparation ──────────────────────────────
+    progress_triggers = [
+        "placement preparation",
+        "how is my placement",
+        "how am i doing",
+        "show my career progress",
+        "career progress",
+        "my progress",
+        "placement progress",
+        "am i ready for placement",
+    ]
+    if any(k in text for k in progress_triggers):
+        return "career_progress"
 
     # ── Application Strategy (must come before job_recommendation) ───────────
     strategy_triggers = [
@@ -186,5 +201,6 @@ INTENTS = [
     "skill_guidance",
     "project_suggestions",
     "application_strategy",
+    "career_progress",
     "general_chat",
 ]
