@@ -8,6 +8,7 @@ Classify the user message into ONLY one intent:
 job_search
 resume_review
 resume_analysis
+resume_optimization
 skill_analysis
 career_roadmap
 interview_prep
@@ -28,6 +29,7 @@ Return only the intent name.
         "job_search",
         "resume_review",
         "resume_analysis",
+        "resume_optimization",
         "skill_analysis",
         "career_roadmap",
         "interview_prep",
@@ -112,10 +114,29 @@ def detect_intent_rule(message: str) -> str | None:
         "developer role",
     ]
 
+    # ── Resume Optimization (must come before generic resume_keywords) ────────
+    optimization_triggers = [
+        "optimize my resume",
+        "optimize resume",
+        "improve my resume for",
+        "tailor my resume",
+        "ats score",
+        "ats compatible",
+        "resume optimization",
+        "how can i improve my resume",
+        "will my resume pass ats",
+        "get more interviews",
+        "optimize my cv",
+        "tailor my cv",
+        "improve my resume to",
+        "resume for this job",
+    ]
+    if any(k in text for k in optimization_triggers):
+        return "resume_optimization"
+
     resume_keywords = [
         "resume",
         "cv",
-        "ats",
         "improve my resume",
         "analyze my resume",
         "review my resume",
@@ -195,6 +216,7 @@ INTENTS = [
     "job_recommendation",
     "job_search",
     "resume_review",
+    "resume_optimization",
     "career_roadmap",
     "interview_prep",
     "market_insights",

@@ -20,6 +20,22 @@ from typing import List, Optional, Dict, Any, Set
 from pydantic import BaseModel, Field
 import openai
 from app.core.openai_client import generate_chat_completion
+from app.core.skill_utils import (
+    TECH_RE as _TECH_RE,
+    SKILL_ALIASES as _SKILL_ALIASES,
+    TITLE_SKILL_MAP as _TITLE_SKILL_MAP,
+    expand_skills_with_aliases as _expand_skills_with_aliases,
+    extract_skills_from_profile,
+    fuzzy_skill_match as _fuzzy_skill_match,
+    infer_skills_from_title as _infer_skills_from_title,
+)
+from app.core.scoring_utils import (
+    PRODUCTION_INDICATORS as _PRODUCTION_INDICATORS,
+    PROJECT_QUALITY_INDICATORS as _PROJECT_QUALITY_INDICATORS,
+    calibrate_score as _calibrate_score,
+    count_production_signals as _count_production_signals,
+    count_project_signals as _count_project_signals,
+)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -64,284 +80,16 @@ class ApplicationStrategyResponse(BaseModel):
     final_recommendation: str = Field(..., description="Concluding recommendation from the career strategist.")
 
 # ==============================================================================
-# CONSTANTS
+# CONSTANTS & SHARED UTILITIES
 # ==============================================================================
-
-# Regex that recognises common tech keywords in raw text (resume / description).
-_TECH_RE: re.Pattern[str] = re.compile(
-    r"\b("
-    # Languages
-    r"python|javascript|typescript|java|kotlin|swift|golang|go|rust|"
-    r"c\+\+|c#|php|ruby|scala|dart|"
-    # Frontend frameworks / libs
-    r"react|vue|angular|next\.?js|nuxt|svelte|remix|"
-    # Backend frameworks
-    r"django|fastapi|flask|express|nest\.?js|spring|laravel|rails|gin|fiber|"
-    # Runtimes
-    r"node\.?js|deno|bun|"
-    # Databases
-    r"postgresql|postgres|mysql|mongodb|redis|sqlite|cassandra|dynamodb|"
-    r"elasticsearch|supabase|firebase|pinecone|weaviate|chromadb|"
-    # Cloud / DevOps / Infra
-    r"aws|azure|gcp|docker|kubernetes|k8s|terraform|ansible|linux|nginx|"
-    r"vercel|netlify|heroku|"
-    # Data / ML / AI
-    r"machine learning|deep learning|tensorflow|pytorch|scikit-learn|"
-    r"pandas|numpy|spark|hadoop|kafka|airflow|"
-    r"langchain|langgraph|llm|rag|vector database|huggingface|transformers|"
-    r"prompt engineering|ai agent|generative ai|gemini|elevenlabs|"
-    r"openai|bedrock|"
-    # Web / API
-    r"html|css|sass|tailwind|bootstrap|graphql|rest|grpc|websocket|"
-    r"stripe|oauth|jwt|authentication|"
-    # Version control / tools
-    r"git|github|gitlab|jira|github actions|ci/cd|"
-    # Generic
-    r"sql|nosql|api|orm|microservices|ocr"
-    r")\b",
-    re.IGNORECASE,
-)
-
-# Semantic skill aliases: maps resume language -> recognized equivalents.
-# When a user's skill matches a key, the values are added as implicit skills.
-_SKILL_ALIASES: Dict[str, Set[str]] = {
-    "ai agent": {"langchain", "llm", "generative ai"},
-    "prompt engineering": {"llm", "generative ai"},
-    "generative ai": {"llm"},
-    "fastapi": {"rest", "api", "python"},
-    "django": {"python", "sql", "orm"},
-    "express": {"javascript", "node.js", "api"},
-    "react": {"javascript", "html", "css"},
-    "flask": {"python", "api"},
-    "postgresql": {"sql"},
-    "mongodb": {"nosql"},
-    "github actions": {"ci/cd", "git"},
-    "docker": {"linux"},
-    "kubernetes": {"docker"},
-    "elevenlabs": {"ai agent", "api"},
-    "gemini": {"llm", "generative ai"},
-    "openai": {"llm", "generative ai", "api"},
-    "langchain": {"llm", "rag", "generative ai"},
-    "redis": {"nosql"},
-}
-
-# Production experience indicators found in resume text.
-_PRODUCTION_INDICATORS = [
-    "production", "deployed", "live system", "monorepo", "CI/CD",
-    "debugging", "monitoring", "scaling", "migration", "release",
-    "staging", "load balancing", "incident", "SLA", "uptime",
-]
-
-# Project quality indicators.
-_PROJECT_QUALITY_INDICATORS = [
-    "stripe", "payment", "authentication", "oauth", "jwt",
-    "real-time", "websocket", "api integration", "ai-powered",
-    "chrome extension", "mobile app", "full-stack", "ocr",
-    "database", "crud", "deployment",
-]
-
-# Title-based skill inference for fallback when a job has no listed requirements.
-# ISSUE 7: Richer role templates with realistic requirements.
-_TITLE_SKILL_MAP: Dict[str, Set[str]] = {
-    "software developer": {
-        "python", "javascript", "sql", "git", "api", "html", "css",
-        "docker", "rest", "ci/cd",
-    },
-    "software engineer": {
-        "python", "javascript", "sql", "git", "api", "docker",
-        "rest", "ci/cd", "linux",
-    },
-    "backend developer": {
-        "python", "django", "fastapi", "sql", "api", "docker",
-        "git", "rest", "postgresql", "redis", "linux", "ci/cd",
-    },
-    "backend engineer": {
-        "python", "django", "fastapi", "sql", "api", "docker",
-        "git", "rest", "postgresql", "redis", "linux", "ci/cd",
-    },
-    "frontend developer": {
-        "javascript", "react", "html", "css", "typescript", "git",
-        "rest", "api", "node.js",
-    },
-    "frontend engineer": {
-        "javascript", "react", "html", "css", "typescript", "git",
-        "rest", "api", "node.js",
-    },
-    "full stack developer": {
-        "python", "javascript", "react", "sql", "api", "html", "css",
-        "git", "node.js", "docker", "rest", "postgresql",
-    },
-    "full stack engineer": {
-        "python", "javascript", "react", "sql", "api", "html", "css",
-        "git", "node.js", "docker", "rest", "postgresql",
-    },
-    "ai engineer": {
-        "python", "machine learning", "deep learning", "llm",
-        "langchain", "rag", "vector database", "docker", "api",
-        "tensorflow", "pytorch", "git",
-    },
-    "ml engineer": {
-        "python", "machine learning", "deep learning", "tensorflow",
-        "pytorch", "pandas", "numpy", "docker", "sql", "git",
-    },
-    "data scientist": {
-        "python", "machine learning", "sql", "pandas", "numpy",
-        "tensorflow", "git",
-    },
-    "devops engineer": {
-        "docker", "kubernetes", "aws", "linux", "terraform",
-        "ci/cd", "git", "python", "nginx",
-    },
-    "data engineer": {
-        "python", "sql", "spark", "kafka", "airflow", "aws",
-        "docker", "postgresql", "git",
-    },
-    "web developer": {
-        "javascript", "html", "css", "react", "node.js", "api",
-        "git", "sql", "rest",
-    },
-    "cloud engineer": {
-        "aws", "azure", "gcp", "docker", "kubernetes", "terraform",
-        "linux", "python", "ci/cd", "git",
-    },
-    "site reliability engineer": {
-        "linux", "docker", "kubernetes", "python", "aws",
-        "terraform", "ci/cd", "git", "nginx",
-    },
-}
-
-# ==============================================================================
-# DETERMINISTIC LOGIC ENGINE
-# ==============================================================================
-
-def _calibrate_score(raw_score: float) -> float:
-    """
-    Apply diminishing returns to raw readiness scores.
-    Prevents unrealistic 100% scores while preserving relative ordering.
-
-    Mapping (approximate):
-        raw 100 -> 93       raw 60 -> 60
-        raw  90 -> 86       raw 50 -> 50
-        raw  80 -> 78       raw 40 -> 40
-        raw  70 -> 70       raw  0 ->  0
-    """
-    if raw_score <= 70:
-        return round(raw_score, 1)
-    # Above 70: compress with diminishing returns — never exceed 95
-    excess = raw_score - 70
-    calibrated = 70 + excess * (1 - excess / 120)
-    return round(min(95.0, max(0.0, calibrated)), 1)
-
-
-def _expand_skills_with_aliases(skills: Set[str]) -> Set[str]:
-    """
-    Expand a skill set by adding implied skills from the alias map.
-    e.g., having 'django' implies 'python', 'sql', 'orm'.
-    """
-    expanded = set(skills)
-    for skill in skills:
-        aliases = _SKILL_ALIASES.get(skill)
-        if aliases:
-            expanded.update(aliases)
-    return expanded
-
-
-def _count_production_signals(resume_text: Optional[str], profile: dict) -> int:
-    """
-    Count how many production-experience indicators appear in the resume.
-    Used as a quality multiplier for experience scoring.
-    """
-    text = (resume_text or profile.get("resume_text") or "").lower()
-    if not text:
-        return 0
-    return sum(1 for indicator in _PRODUCTION_INDICATORS if indicator.lower() in text)
-
-
-def _count_project_signals(resume_text: Optional[str], profile: dict) -> int:
-    """
-    Count project quality signals from resume text and parsed resume projects.
-    """
-    count = 0
-    text = (resume_text or profile.get("resume_text") or "").lower()
-    if text:
-        count += sum(1 for ind in _PROJECT_QUALITY_INDICATORS if ind.lower() in text)
-
-    # Also check parsed_resume for project entries
-    parsed = profile.get("parsed_resume") or {}
-    if isinstance(parsed, str):
-        try:
-            parsed = json.loads(parsed)
-        except (json.JSONDecodeError, TypeError):
-            parsed = {}
-    if isinstance(parsed, dict):
-        projects = parsed.get("projects") or []
-        if isinstance(projects, list):
-            count += min(len(projects), 5)  # Cap contribution at 5 projects
-
-    return count
-
-
-def extract_skills_from_profile(profile: dict, resume_text: Optional[str] = None) -> Set[str]:
-    """
-    Safely extract skills from all available sources in the user profile.
-
-    Sources (highest to lowest reliability):
-      1. profile.skills list -- skills the user explicitly added (handles both str and dict)
-      2. profile.parsed_resume JSON -- fields extracted by the resume parser
-      3. resume_text argument -- caller-supplied raw resume text
-      4. profile.resume_text -- resume text stored on the Django profile
-    """
-    skills: Set[str] = set()
-
-    # -- 1. Explicit profile skills ----
-    for item in profile.get("skills") or []:
-        if isinstance(item, dict):
-            name = item.get("name", "")
-        elif isinstance(item, str):
-            name = item
-        else:
-            continue
-        if name and isinstance(name, str):
-            skills.add(name.lower().strip())
-
-    # -- 2. parsed_resume JSON ----
-    parsed = profile.get("parsed_resume") or {}
-    if isinstance(parsed, str):
-        try:
-            parsed = json.loads(parsed)
-        except (json.JSONDecodeError, TypeError):
-            parsed = {}
-
-    if isinstance(parsed, dict):
-        for key in ("skills", "technologies", "tech_stack", "frameworks", "languages", "tools"):
-            val = parsed.get(key)
-            if isinstance(val, list):
-                for s in val:
-                    if isinstance(s, str) and s.strip():
-                        skills.add(s.lower().strip())
-            elif isinstance(val, str) and val.strip():
-                for part in val.split(","):
-                    part = part.strip()
-                    if part:
-                        skills.add(part.lower())
-
-    # -- 3. Regex extraction from resume text ----
-    for text_source in (resume_text, profile.get("resume_text")):
-        if text_source and isinstance(text_source, str):
-            for m in _TECH_RE.finditer(text_source):
-                skills.add(m.group(0).lower().strip())
-            break  # Use only the first non-empty source to avoid duplication
-
-    skills.discard("")
-
-    # -- 4. Expand with semantic aliases ----
-    expanded = _expand_skills_with_aliases(skills)
-
-    logger.info(
-        "[STRATEGY] Extracted %d base skills (+%d via aliases = %d total): %s",
-        len(skills), len(expanded) - len(skills), len(expanded), sorted(expanded),
-    )
-    return expanded
+# Constants and helper functions (_TECH_RE, _SKILL_ALIASES, _TITLE_SKILL_MAP,
+# _calibrate_score, _expand_skills_with_aliases, _count_production_signals,
+# _count_project_signals, extract_skills_from_profile, _fuzzy_skill_match,
+# _infer_skills_from_title) are imported from app.core.skill_utils and
+# app.core.scoring_utils at the top of this file.
+# These shared modules were extracted to enable reuse across tools
+# (resume_optimizer_tool, personalized_job_recommender, etc.)
+# without tight coupling or circular imports.
 
 
 def calculate_readiness_score(user_profile: dict, resume_text: Optional[str]) -> float:
@@ -451,63 +199,8 @@ def calculate_readiness_score(user_profile: dict, resume_text: Optional[str]) ->
     return final
 
 
-def _infer_skills_from_title(job_title: str) -> Set[str]:
-    """
-    Infer expected skills from a job title when no explicit requirements are listed.
-    Uses fuzzy matching against known role patterns.
-    Prefers the most specific (longest) match to avoid generic fallback.
-    """
-    if not job_title:
-        return set()
-    title_lower = job_title.lower().strip()
-
-    # Sort patterns by length descending so more specific patterns match first
-    sorted_patterns = sorted(_TITLE_SKILL_MAP.keys(), key=len, reverse=True)
-
-    # First pass: prefer full pattern match (e.g., "ai engineer" in "AI Engineer")
-    for pattern in sorted_patterns:
-        if pattern in title_lower:
-            logger.info(
-                "[STRATEGY] Title '%s' matched full pattern '%s' -> inferred %d skills: %s",
-                job_title, pattern, len(_TITLE_SKILL_MAP[pattern]),
-                sorted(_TITLE_SKILL_MAP[pattern]),
-            )
-            return _TITLE_SKILL_MAP[pattern]
-
-    # Second pass: match any significant word (len > 3) from pattern
-    for pattern in sorted_patterns:
-        if any(word in title_lower for word in pattern.split() if len(word) > 3):
-            logger.info(
-                "[STRATEGY] Title '%s' word-matched pattern '%s' -> inferred %d skills: %s",
-                job_title, pattern, len(_TITLE_SKILL_MAP[pattern]),
-                sorted(_TITLE_SKILL_MAP[pattern]),
-            )
-            return _TITLE_SKILL_MAP[pattern]
-
-    return set()
-
-
-def _fuzzy_skill_match(user_skills: Set[str], job_reqs: Set[str]) -> tuple:
-    """
-    Compare user skills against job requirements using fuzzy substring matching
-    plus semantic alias expansion.
-    Handles variations like 'react' <-> 'reactjs', 'node.js' <-> 'nodejs', etc.
-
-    Returns:
-        (matched_skills: list, missing_skills: list)
-    """
-    user_lower = {s.lower() for s in user_skills}
-    matched = []
-    missing = []
-    for req in job_reqs:
-        req_lower = req.lower()
-        # Direct or substring match
-        found = any(req_lower in us or us in req_lower for us in user_lower)
-        if found:
-            matched.append(req)
-        else:
-            missing.append(req)
-    return matched, missing
+# _infer_skills_from_title and _fuzzy_skill_match are imported from
+# app.core.skill_utils (see imports at top of file).
 
 
 def calculate_job_readiness(

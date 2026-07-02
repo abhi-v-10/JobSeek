@@ -9,7 +9,7 @@ from app.services.django_service import (
 )
 from app.services.intent_service import detect_intent
 from app.services.openai_service import ask_ai, generate_chat_title
-from app.tools import interview_tool, job_tool, resume_tool, application_strategy_tool, career_progress_tool
+from app.tools import interview_tool, job_tool, resume_tool, application_strategy_tool, career_progress_tool, resume_optimizer_tool
 from app.tools.personalized_job_recommender import recommend_jobs_for_user
 from app.utils.file_parser import encode_image, extract_text_from_file
 from fastapi import APIRouter, File, Form, Header, UploadFile
@@ -87,7 +87,14 @@ async def chat(
     message_type: str = "text"
     job_data: Optional[object] = None
 
-    if intent == "application_strategy":
+    if intent == "resume_optimization":
+        ai_reply, message_type, job_data = _handle_resume_optimization(
+            session_id=session_id,
+            message=message,
+            authorization=authorization,
+        )
+
+    elif intent == "application_strategy":
         ai_reply, message_type, job_data = _handle_application_strategy(
             session_id=session_id,
             message=message,
@@ -382,3 +389,65 @@ def _handle_application_strategy(
     ]
 
     return ai_reply, "text", job_data
+
+
+# ---------------------------------------------------------------------------
+# Resume optimization handler
+# ---------------------------------------------------------------------------
+
+
+def _handle_resume_optimization(
+    session_id: str,
+    message: str,
+    authorization: Optional[str],
+) -> tuple[str, str, Optional[list]]:
+    """
+    Fetch user profile and resume, run personalized job recommendations
+    for context, and generate a comprehensive resume optimization.
+
+    Returns:
+        (ai_reply: str, message_type: str, job_data: list | None)
+    """
+    log_tool_call(session_id, "resume_optimizer_tool")
+
+    user_profile: dict = {}
+    if authorization:
+        try:
+            user_profile = fetch_user_profile(auth_token=authorization) or {}
+        except Exception:
+            pass
+
+    # Fetch resume text
+    resume_text = user_profile.get("resume_text", "")
+
+    # Extract target role from message or profile
+    target_role = user_profile.get("target_role")
+
+    # Fetch job recommendations for context (best-effort)
+    job_description = None
+    try:
+        recommendations = recommend_jobs_for_user(
+            user_profile=user_profile,
+            resume_text=resume_text,
+            user_query=message,
+            limit=5,
+        )
+        # Use top job's description as context if available
+        if recommendations.recommended_jobs:
+            top_job = recommendations.recommended_jobs[0]
+            if hasattr(top_job, "description") and top_job.description:
+                job_description = top_job.description
+    except Exception:
+        pass  # Job recommendations are optional context
+
+    # Run the resume optimizer
+    result = resume_optimizer_tool.optimize_resume(
+        resume_text=resume_text,
+        user_profile=user_profile,
+        target_role=target_role,
+        job_description=job_description,
+    )
+
+    ai_reply = resume_optimizer_tool.format_resume_optimization(result)
+
+    return ai_reply, "text", None
