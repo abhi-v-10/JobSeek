@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -9,7 +8,6 @@ import { TECHNICAL_SKILLS, LANGUAGES } from '../constants/skills';
 import { Shield, Key, Mail, Fingerprint } from 'lucide-react';
 
 const ProfileSettings = () => {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'skills' | 'security'>('profile');
   const [formData, setFormData] = useState({
     username: '',
@@ -302,12 +300,6 @@ const ProfileSettings = () => {
                 }`}
               >
                 Manage Skills
-              </button>
-              <button
-                onClick={() => navigate('/resume')}
-                className="flex-1 md:flex-none text-left px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-              >
-                Manage Resume
               </button>
               <button
                 onClick={() => setActiveTab('security')}

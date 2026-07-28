@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Briefcase, MessageSquare, Bot, PlusCircle, Search, LogIn, LogOut, LayoutDashboard, User, Settings, Upload, FileText, List, X } from 'lucide-react';
+import { Briefcase, MessageSquare, Bot, PlusCircle, Search, LogIn, LogOut, LayoutDashboard, User, Settings, FileText, List, X } from 'lucide-react';
 import api from '../../lib/axios';
 import ThemeToggle from '../ui/ThemeToggle';
 
@@ -142,25 +142,14 @@ const Navbar = () => {
                       </Link>
                     )}
                     
-                    {profile?.resume ? (
-                      <Link 
-                        to="/resume" 
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
-                      >
-                        <FileText size={16} />
-                        View Resume
-                      </Link>
-                    ) : (
-                      <Link 
-                        to="/resume" 
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
-                      >
-                        <Upload size={16} />
-                        Upload Resume
-                      </Link>
-                    )}
+                    <Link
+                      to="/resume"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50"
+                    >
+                      <FileText size={16} />
+                      Manage Resume
+                    </Link>
                     
                     <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-1"></div>
                     
