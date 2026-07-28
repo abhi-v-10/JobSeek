@@ -14,6 +14,7 @@ from apps.applications.constants import ApplicationStatus
 from .email_utils import send_application_email
 from .models import Job, JobInteractionStats, SavedJob, ViewedJob
 from .serializers import (
+    ApplicantDetailSerializer,
     ApplicantSerializer,
     JobApplicationSerializer,
     JobSerializer,
@@ -162,6 +163,29 @@ class JobApplicantsAPIView(APIView):
         )
 
 
+# ── Applicant Detail (single applicant's full profile, poster only) ──────────
+
+
+class ApplicantDetailAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, id, application_id):
+        job = get_object_or_404(Job, id=id)
+        if job.posted_by_id != request.user.id:
+            raise PermissionDenied("Only the job poster can view applicant profiles.")
+        application = get_object_or_404(
+            JobApplication.objects.select_related("user__profile").prefetch_related(
+                "user__profile__skills"
+            ),
+            id=application_id,
+            job=job,
+        )
+        return Response(
+            ApplicantDetailSerializer(application, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+
 # ── Apply Eligibility ─────────────────────────────────────────────────────────
 
 
@@ -244,10 +268,13 @@ class ApplyJobAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        optional_message = request.data.get("message", "")
+
         with transaction.atomic():
             application = ApplicationService.create_application(
                 user=request.user,
                 job=job,
+                cover_letter=optional_message,
                 status=ApplicationStatus.APPLIED,
             )
             stats = _change_interaction_count(job, "applied_count", delta=1)
@@ -262,7 +289,6 @@ class ApplyJobAPIView(APIView):
             )
 
             # Send Email
-            optional_message = request.data.get("message", "")
             send_application_email(job, request.user, conversation.id, optional_message)
 
         serializer = JobApplicationSerializer(application, context={"request": request})

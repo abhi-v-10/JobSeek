@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    ApplicantDetailAPIView,
     ApplyJobAPIView,
     ApplyEligibilityAPIView,
     JobApplicantsAPIView,
@@ -28,4 +29,5 @@ urlpatterns = [
     path("<int:id>/save/", SaveJobAPIView.as_view(), name="job-save"),
     path("<int:id>/edit/", JobUpdateAPIView.as_view(), name="job-edit"),
     path("<int:id>/applicants/", JobApplicantsAPIView.as_view(), name="job-applicants"),
+    path("<int:id>/applicants/<int:application_id>/", ApplicantDetailAPIView.as_view(), name="job-applicant-detail"),
 ]

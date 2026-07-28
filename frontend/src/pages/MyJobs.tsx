@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
+import ApplicantProfileModal from '../components/jobs/ApplicantProfileModal';
 import { jobsService } from '../services/jobs';
 import type { MyJob, PostJobPayload } from '../services/jobs';
 import {
@@ -37,6 +38,7 @@ const MyJobs = () => {
   const [editForm, setEditForm] = useState<Partial<PostJobPayload & { status: string }>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState<Set<number | string>>(new Set());
+  const [selectedApplicant, setSelectedApplicant] = useState<{ jobId: number | string; applicationId: number | string } | null>(null);
 
   useEffect(() => {
     jobsService.getMyJobs()
@@ -356,23 +358,27 @@ const MyJobs = () => {
                         </div>
                       ) : (
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                          {job.applicants.map((app, idx) => (
-                            <div key={app.id} className="flex items-center justify-between px-6 py-4 gap-4">
-                              <div className="flex items-center gap-3">
+                          {job.applicants.map((app) => (
+                            <button
+                              key={app.id}
+                              onClick={() => setSelectedApplicant({ jobId: job.id, applicationId: app.id })}
+                              className="w-full flex items-center justify-between px-6 py-4 gap-4 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
                                 <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-500 dark:text-zinc-400 shrink-0">
                                   {(app.full_name || app.username).charAt(0).toUpperCase()}
                                 </div>
-                                <div>
-                                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50 truncate">
                                     {app.full_name || app.username}
                                   </p>
-                                  <p className="text-xs text-zinc-400">{app.email}</p>
+                                  <p className="text-xs text-zinc-400 truncate">{app.email}</p>
                                 </div>
                               </div>
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize whitespace-nowrap ${APPLICATION_STATUS_BADGE[app.status] || 'bg-zinc-100 text-zinc-500'}`}>
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize whitespace-nowrap shrink-0 ${APPLICATION_STATUS_BADGE[app.status] || 'bg-zinc-100 text-zinc-500'}`}>
                                 {app.status}
                               </span>
-                            </div>
+                            </button>
                           ))}
                         </div>
                       )}
@@ -382,6 +388,14 @@ const MyJobs = () => {
               );
             })}
           </div>
+        )}
+
+        {selectedApplicant && (
+          <ApplicantProfileModal
+            jobId={selectedApplicant.jobId}
+            applicationId={selectedApplicant.applicationId}
+            onClose={() => setSelectedApplicant(null)}
+          />
         )}
       </div>
     </ProtectedRoute>

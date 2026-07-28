@@ -110,6 +110,108 @@ class ApplicantSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class ApplicantSkillSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    category = serializers.CharField()
+
+
+class ApplicantDetailSerializer(serializers.ModelSerializer):
+    """
+    Full applicant profile for a single application — shown only to the
+    job poster. Prefers the immutable resume snapshot taken at the time
+    of application, falling back to the applicant's current profile resume.
+    """
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    full_name = serializers.SerializerMethodField()
+    mobile_number = serializers.SerializerMethodField()
+    profile_picture = serializers.SerializerMethodField()
+    resume = serializers.SerializerMethodField()
+    linkedin_url = serializers.SerializerMethodField()
+    github_url = serializers.SerializerMethodField()
+    skills = serializers.SerializerMethodField()
+    message = serializers.CharField(source="cover_letter", read_only=True)
+    applied_at = serializers.DateTimeField(source="created_at", read_only=True)
+    conversation_id = serializers.SerializerMethodField()
+
+    def _profile(self, obj):
+        return getattr(obj.user, "profile", None)
+
+    def _request(self):
+        return self.context.get("request")
+
+    def _absolute(self, file_field):
+        if not file_field:
+            return None
+        request = self._request()
+        try:
+            url = file_field.url
+        except ValueError:
+            return None
+        return request.build_absolute_uri(url) if request else url
+
+    def get_full_name(self, obj):
+        profile = self._profile(obj)
+        return profile.full_name if profile else ""
+
+    def get_mobile_number(self, obj):
+        profile = self._profile(obj)
+        return profile.mobile_number if profile else ""
+
+    def get_profile_picture(self, obj):
+        profile = self._profile(obj)
+        return self._absolute(profile.profile_picture) if profile else None
+
+    def get_resume(self, obj):
+        # Prefer the immutable snapshot taken at application time.
+        if obj.resume_snapshot:
+            return self._absolute(obj.resume_snapshot)
+        profile = self._profile(obj)
+        return self._absolute(profile.resume) if profile else None
+
+    def get_linkedin_url(self, obj):
+        profile = self._profile(obj)
+        return profile.linkedin_url if profile else ""
+
+    def get_github_url(self, obj):
+        profile = self._profile(obj)
+        return profile.github_url if profile else ""
+
+    def get_skills(self, obj):
+        profile = self._profile(obj)
+        if not profile:
+            return []
+        return ApplicantSkillSerializer(profile.skills.all(), many=True).data
+
+    def get_conversation_id(self, obj):
+        from apps.messaging.models import Conversation
+
+        conversation = Conversation.objects.filter(
+            participant_1=obj.job.posted_by, participant_2=obj.user, job=obj.job
+        ).first()
+        return conversation.id if conversation else None
+
+    class Meta:
+        model = JobApplication
+        fields = [
+            "id",
+            "username",
+            "email",
+            "full_name",
+            "mobile_number",
+            "profile_picture",
+            "resume",
+            "linkedin_url",
+            "github_url",
+            "skills",
+            "message",
+            "status",
+            "applied_at",
+            "conversation_id",
+        ]
+        read_only_fields = fields
+
+
 class JobApplicationSerializer(serializers.ModelSerializer):
     job = JobSerializer(read_only=True)
 

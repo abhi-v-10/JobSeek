@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import logging
 
-from django.db.models.signals import post_save, pre_save
+from django.db.models import F
+from django.db.models.functions import Greatest
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from .constants import ApplicationStatus, TimelineEventType
@@ -107,6 +109,33 @@ def create_application_timeline_event(
     except Exception:
         # Timeline creation is best-effort — never block the save
         logger.exception("Failed to create timeline event for application %s", instance.pk)
+
+
+@receiver(post_delete, sender=JobApplication)
+def decrement_applied_count_on_delete(
+    sender: type,
+    instance: JobApplication,
+    **kwargs,
+) -> None:
+    """
+    Keep Job.interaction_stats.applied_count in sync when an application
+    row is hard-deleted (e.g. via the Django admin), since the normal API
+    delete path only soft-deletes (sets `archived=True`) and never removes
+    the row. Without this, the "applied" count on the poster's job listing
+    can drift ahead of the number of applicants actually shown.
+    """
+    try:
+        from apps.jobs.models import JobInteractionStats
+
+        JobInteractionStats.objects.filter(job_id=instance.job_id).update(
+            applied_count=Greatest(F("applied_count") - 1, 0)
+        )
+    except Exception:
+        logger.exception(
+            "Failed to decrement applied_count for job %s after application %s was deleted",
+            instance.job_id,
+            instance.pk,
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════

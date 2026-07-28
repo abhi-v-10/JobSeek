@@ -42,6 +42,28 @@ export interface Applicant {
   created_at: string;
 }
 
+export interface ApplicantSkill {
+  name: string;
+  category: string;
+}
+
+export interface ApplicantDetail {
+  id: number;
+  username: string;
+  email: string;
+  full_name: string;
+  mobile_number: string;
+  profile_picture: string | null;
+  resume: string | null;
+  linkedin_url: string;
+  github_url: string;
+  skills: ApplicantSkill[];
+  message: string | null;
+  status: string;
+  applied_at: string;
+  conversation_id: number | null;
+}
+
 export interface MyJob extends Job {
   applicants: Applicant[];
 }
@@ -97,6 +119,11 @@ export const jobsService = {
 
   getMyJobs: async (): Promise<MyJob[]> => {
     const response = await api.get('/jobs/my-jobs/');
+    return response.data;
+  },
+
+  getApplicantDetail: async (jobId: number | string, applicationId: number | string): Promise<ApplicantDetail> => {
+    const response = await api.get(`/jobs/${jobId}/applicants/${applicationId}/`);
     return response.data;
   },
 
