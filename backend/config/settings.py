@@ -24,7 +24,7 @@ load_dotenv(BASE_DIR / ".env")
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-(4io(%=s&9y)69yq#slw=gy^vm&kpqo4)am!8eoj8e5jhxdb+7'
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -118,8 +118,8 @@ LOGIN_REDIRECT_URL = 'http://localhost:5173/dashboard'
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'APP': {
-            'client_id': '77948394458-uii2p36qr32l7eqrll90ae5crbioiu23.apps.googleusercontent.com',
-            'secret': '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',
+            'client_id': os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
+            'secret': os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
             'key': ''
         },
         'SCOPE': ['profile', 'email'],
@@ -127,8 +127,8 @@ SOCIALACCOUNT_PROVIDERS = {
     },
     'github': {
         'APP': {
-            'client_id': 'Ov23liWXct5XsHtgkOKb',
-            'secret': 'edca32508273e02ffba7cace3b0dd4596c754046',
+            'client_id': os.getenv("GITHUB_OAUTH_CLIENT_ID"),
+            'secret': os.getenv("GITHUB_OAUTH_CLIENT_SECRET"),
             'key': ''
         },
         'SCOPE': ['user:email'],
