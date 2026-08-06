@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Dict, Optional, Set
+from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -309,3 +309,142 @@ def infer_skills_from_title(job_title: str) -> Set[str]:
             return TITLE_SKILL_MAP[pattern]
 
     return set()
+
+
+# ==============================================================================
+# DISPLAY NAMES
+# ==============================================================================
+
+# Skills are stored and matched lowercase, but str.title() mangles real
+# technology names ("Fastapi", "Css", "Ci/Cd", "Node.Js"). Anything not listed
+# here falls back to title-case, which is correct for ordinary words.
+SKILL_DISPLAY_NAMES: Dict[str, str] = {
+    "ai agent": "AI agents", "api": "APIs", "aws": "AWS", "azure": "Azure",
+    "ci/cd": "CI/CD", "css": "CSS", "c++": "C++", "c#": "C#",
+    "deep learning": "deep learning", "devops": "DevOps", "django": "Django",
+    "dynamodb": "DynamoDB", "elasticsearch": "Elasticsearch", "elevenlabs": "ElevenLabs",
+    "expressjs": "Express", "express": "Express", "fastapi": "FastAPI",
+    "firebase": "Firebase", "flask": "Flask", "gcp": "GCP", "gemini": "Gemini",
+    "generative ai": "generative AI", "github": "GitHub", "github actions": "GitHub Actions",
+    "gitlab": "GitLab", "graphql": "GraphQL", "grpc": "gRPC", "html": "HTML",
+    "huggingface": "Hugging Face", "javascript": "JavaScript", "jwt": "JWT",
+    "k8s": "Kubernetes", "kubernetes": "Kubernetes", "langchain": "LangChain",
+    "langgraph": "LangGraph", "llm": "LLMs", "llmops": "LLMOps",
+    "machine learning": "machine learning", "mongodb": "MongoDB", "mysql": "MySQL",
+    "next.js": "Next.js", "nextjs": "Next.js", "node.js": "Node.js", "nodejs": "Node.js",
+    "nosql": "NoSQL", "numpy": "NumPy", "oauth": "OAuth", "ocr": "OCR",
+    "openai": "OpenAI", "orm": "ORMs", "pandas": "pandas", "php": "PHP",
+    "postgres": "PostgreSQL", "postgresql": "PostgreSQL", "prompt engineering": "prompt engineering",
+    "pytorch": "PyTorch", "rag": "RAG", "redis": "Redis", "rest": "REST APIs",
+    "restful": "REST APIs", "ruby on rails": "Ruby on Rails", "scikit-learn": "scikit-learn",
+    "sql": "SQL", "sqlite": "SQLite", "tailwind": "Tailwind", "tensorflow": "TensorFlow",
+    "typescript": "TypeScript", "vector database": "vector databases",
+    "vue": "Vue", "websocket": "WebSockets",
+}
+
+
+def canonical_skill_name(skill: str) -> str:
+    """
+    Human-readable display form of a skill.
+
+    Falls back to title case for words not in the map, so ordinary terms
+    ("testing" -> "Testing") still read correctly.
+    """
+    if not skill or not isinstance(skill, str):
+        return ""
+    key = skill.strip().lower()
+    if key in SKILL_DISPLAY_NAMES:
+        return SKILL_DISPLAY_NAMES[key]
+    if skill.isupper():  # already an acronym the caller set deliberately
+        return skill
+    return skill.strip().title()
+
+
+# ==============================================================================
+# EVIDENCE-BASED GAP FILTERING
+# ==============================================================================
+
+def is_skill_demonstrated(
+    skill: str,
+    user_skills: Set[str],
+    resume_text: Optional[str] = None,
+) -> bool:
+    """
+    Decide whether the user already demonstrates a skill.
+
+    Checks three sources of evidence, cheapest first:
+      1. Direct / substring match against the user's skill set.
+      2. Alias expansion — shipping a Gemini or ElevenLabs integration implies
+         'generative ai' and 'llm', so recommending "learn GenAI" would be wrong.
+      3. Literal mention in the resume text.
+
+    Args:
+        skill: The candidate gap skill (e.g. "Generative AI (GenAI)").
+        user_skills: The user's known skills.
+        resume_text: Raw resume plaintext, if available.
+
+    Returns:
+        True if there is evidence the user already has this skill.
+    """
+    if not skill or not isinstance(skill, str):
+        return False
+
+    # Normalise: "Generative AI (GenAI)" -> "generative ai"
+    normalised = re.sub(r"\([^)]*\)", " ", skill).strip().lower()
+    normalised = re.sub(r"\s{2,}", " ", normalised)
+    if not normalised:
+        return False
+
+    expanded = {s.lower() for s in expand_skills_with_aliases({s.lower() for s in user_skills})}
+
+    # 1 & 2 — direct, word-boundary, or alias-implied match.
+    #
+    # Matching is word-boundary rather than bare substring: "orm" is a
+    # substring of "terraform", which would otherwise let a Django user's
+    # implied ORM knowledge suppress a genuine Terraform gap. The optional
+    # trailing "s" absorbs plurals ("llm"/"llms", "vector database(s)").
+    for known in expanded:
+        if not known:
+            continue
+        if normalised == known:
+            return True
+        if re.search(rf"\b{re.escape(known)}s?\b", normalised):
+            return True
+        if re.search(rf"\b{re.escape(normalised)}s?\b", known):
+            return True
+
+    # 3 — literal resume evidence.
+    if resume_text:
+        if re.search(rf"\b{re.escape(normalised)}s?\b", resume_text, re.IGNORECASE):
+            return True
+
+    return False
+
+
+def filter_demonstrated_skills(
+    candidate_gaps: List[str],
+    user_skills: Set[str],
+    resume_text: Optional[str] = None,
+) -> List[str]:
+    """
+    Drop "gaps" the user demonstrably already has, preserving order.
+
+    Gap analysis must be evidence-based: telling someone who built a Gemini
+    integration to "learn Generative AI" is the fastest way to lose their
+    trust in every other recommendation.
+
+    Args:
+        candidate_gaps: Proposed missing skills, in priority order.
+        user_skills: The user's known skills.
+        resume_text: Raw resume plaintext, if available.
+
+    Returns:
+        The gaps with no supporting evidence in the user's profile.
+    """
+    kept: List[str] = []
+    for gap in candidate_gaps or []:
+        if is_skill_demonstrated(gap, user_skills, resume_text):
+            logger.info("[SKILL_UTILS] Dropping already-demonstrated gap: %s", gap)
+            continue
+        kept.append(gap)
+    return kept

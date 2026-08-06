@@ -324,7 +324,7 @@ const SectionTitle = ({
 // ─── Section 1: Hero ──────────────────────────────────────────────────────────
 
 const HeroSection = ({ onGetStarted }: { onGetStarted: () => void }) => (
-  <section className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center overflow-hidden">
+  <section className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center overflow-hidden bg-zinc-950">
     <div className="relative z-10 max-w-4xl mx-auto space-y-6 animate-fade-in-up pointer-events-none">
       <TextType
         as="h1"

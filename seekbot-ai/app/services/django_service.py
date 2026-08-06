@@ -137,3 +137,100 @@ def fetch_upcoming_interviews(auth_token: str = None) -> dict:
         return {}
 
     return response.json()
+
+
+# ---------------------------------------------------------------------------
+# Write operations
+# ---------------------------------------------------------------------------
+#
+# IMPORTANT — additive only.
+#
+# Django exposes POST /users/skills/bulk/, but that endpoint DELETES every
+# existing skill before recreating from the payload. The agent must never
+# destroy user-entered data, so skill writes go one-at-a-time through
+# POST /users/skills/, which only ever appends.
+
+
+def add_user_skill(
+    name: str,
+    category: str = "technical",
+    auth_token: str = None,
+) -> dict:
+    """
+    Append a single skill to the authenticated user's profile.
+
+    Additive only — never removes or overwrites existing skills.
+
+    Args:
+        name: Skill name (e.g. "FastAPI").
+        category: One of "technical", "language", "other".
+        auth_token: Bearer token forwarded from the user's request.
+
+    Returns:
+        {"success": bool, "name": str, "error": str | None}
+    """
+    if not name or not str(name).strip():
+        return {"success": False, "name": name, "error": "Empty skill name."}
+
+    safe_category = category if category in {"technical", "language", "other"} else "technical"
+
+    url = f"{DJANGO_API_BASE_URL}/users/skills/"
+    headers = {"Authorization": auth_token} if auth_token else {}
+    payload = {"name": str(name).strip()[:100], "category": safe_category}
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+    except requests.exceptions.RequestException as exc:
+        return {"success": False, "name": name, "error": f"Connection failed: {exc}"}
+
+    if not response.ok:
+        return {
+            "success": False,
+            "name": name,
+            "error": f"Django returned {response.status_code}: {response.text[:200]}",
+        }
+
+    return {"success": True, "name": name, "error": None}
+
+
+def add_user_skills(
+    skills: list,
+    category: str = "technical",
+    auth_token: str = None,
+) -> dict:
+    """
+    Append several skills to the profile, tolerating partial failure.
+
+    Each skill is written independently — one rejected skill does not block
+    the rest. Returns a summary so the agent can report exactly what landed.
+
+    Args:
+        skills: List of skill names, or dicts with "name"/"category" keys.
+        category: Default category for bare string entries.
+        auth_token: Bearer token forwarded from the user's request.
+
+    Returns:
+        {"success": bool, "added": [...], "failed": [{"name", "error"}]}
+    """
+    added: list[str] = []
+    failed: list[dict] = []
+
+    for entry in skills or []:
+        if isinstance(entry, dict):
+            name = entry.get("name")
+            entry_category = entry.get("category") or category
+        else:
+            name = entry
+            entry_category = category
+
+        result = add_user_skill(name=name, category=entry_category, auth_token=auth_token)
+        if result["success"]:
+            added.append(result["name"])
+        else:
+            failed.append({"name": result["name"], "error": result["error"]})
+
+    return {
+        "success": bool(added) and not failed,
+        "added": added,
+        "failed": failed,
+    }

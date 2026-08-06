@@ -36,6 +36,7 @@ from app.core.scoring_utils import (
     count_production_signals as _count_production_signals,
     count_project_signals as _count_project_signals,
 )
+from app.core.voice import VOICE_RULES, enforce_second_person
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -622,9 +623,10 @@ def generate_strategy_with_ai(
     schema_json = json.dumps(ApplicationStrategyResponse.model_json_schema(), indent=2)
     # ISSUE 4, 8, 9: Enhanced AI prompt for recruiter-grade output
     system_prompt = (
-        "You are an elite Career Strategist, Senior Hiring Manager, and Technical Career Coach at JobSeek. "
-        "You have 15+ years of experience in technical recruiting and career coaching.\n\n"
-        "Your objective is to produce a HIGHLY PERSONALIZED, EVIDENCE-BASED application strategy.\n\n"
+        "You are SeekBot, a trusted career mentor at JobSeek. You are speaking DIRECTLY to the user, "
+        "the way a senior engineer would talk to a junior developer they're helping.\n\n"
+        f"{VOICE_RULES}\n"
+        "Your objective is a HIGHLY PERSONALIZED, EVIDENCE-BASED application strategy.\n\n"
         "CRITICAL INSTRUCTIONS:\n"
         "1. Do NOT invent new jobs; strictly use the `pre_analyzed_jobs` provided.\n"
         "2. You MUST use the provided deterministic scores (`deterministic_match_score`, `deterministic_readiness_score`) "
@@ -632,15 +634,20 @@ def generate_strategy_with_ai(
         "3. For `why_recommended`: Reference SPECIFIC skills, projects, and experience from the user's resume. "
         "Never write generic text like 'You are a strong fit.' Instead write evidence like "
         "'Your Django backend experience with production debugging and Redis caching directly aligns with this role.'\n"
-        "4. For `skill_gaps`: Only list TRULY missing skills. If the user has related experience "
-        "(e.g., AI agent development counts toward LLM/GenAI requirements), acknowledge partial coverage and "
-        "suggest SPECIFIC advanced gaps (e.g., 'RAG architectures', 'vector databases', 'LLMOps') rather than broad categories.\n"
+        "4. For `skill_gaps`: Only list TRULY missing skills. Check `user_skills` and the resume before naming any gap — "
+        "if the user already shows related work (e.g. a shipped Gemini or ElevenLabs integration already covers "
+        "LLM/GenAI), do NOT list it as a gap. Name the specific advanced gap instead "
+        "('RAG architectures', 'vector databases', 'LLMOps'), never the broad category they already work in.\n"
         "5. For `required_next_steps`: Be HIGHLY SPECIFIC and actionable. Instead of 'Learn AI', write "
         "'Build a RAG-powered chatbot using LangChain and PostgreSQL within 4 weeks.'\n"
-        "6. For `strategic_advice`: Provide recruiter-level observations based on resume evidence. "
-        "Example: 'Your combination of production backend work and AI integration is uncommon among early-career "
-        "candidates -- emphasize this in every application.'\n"
-        "7. For `career_summary`: Write a recruiter's assessment of the candidate, referencing specific strengths.\n"
+        "6. For `strategic_advice`: Give mentor-level observations grounded in resume evidence, addressed to the user. "
+        "Example: 'Your combination of production backend work and AI integration is uncommon this early in a career — "
+        "lead with it in every application.'\n"
+        "7. For `career_summary`: Write 1-2 sentences TO the user about where they stand right now, referencing their "
+        "actual strengths. Start with 'You' or 'Your'. "
+        "WRONG: 'Abhishyanth is a CS student with strong Django experience.' "
+        "RIGHT: 'You've built real production backend experience with Django and REST APIs, which puts you ahead of "
+        "most people applying to these roles.'\n"
         "8. For `application_strategy` phases: Include concrete, time-bound actions with specific technologies and projects.\n"
         f"9. Output a JSON object matching this schema:\n{schema_json}"
     )
@@ -662,11 +669,49 @@ def generate_strategy_with_ai(
 
         raw_content = response.choices[0].message.content.strip()
         parsed_dict = json.loads(raw_content)
-        return ApplicationStrategyResponse.model_validate(parsed_dict)
+        strategy = ApplicationStrategyResponse.model_validate(parsed_dict)
+
+        # Deterministic voice guard. The prompt asks for second person, but
+        # models slip into recruiter-report narration ("<Name> is a CS student
+        # with strong Django experience...") especially when the payload
+        # carries the user's name. Repair it here so a prompt regression can
+        # never reach the user.
+        return _enforce_strategy_voice(strategy, user_profile)
 
     except Exception as e:
         logger.error("AI strategy generation failed: %s", str(e))
         raise e
+
+
+def _enforce_strategy_voice(
+    strategy: ApplicationStrategyResponse,
+    user_profile: dict,
+) -> ApplicationStrategyResponse:
+    """Rewrite any third-person narration in generated copy into second person."""
+    user_name = (user_profile or {}).get("full_name") or (user_profile or {}).get("username")
+
+    strategy.career_summary = enforce_second_person(
+        strategy.career_summary,
+        user_name,
+        fallback="Here's where you stand right now, based on your resume and the roles you're targeting.",
+    )
+    strategy.final_recommendation = enforce_second_person(strategy.final_recommendation, user_name)
+    strategy.strategic_advice = [
+        enforce_second_person(advice, user_name) for advice in strategy.strategic_advice
+    ]
+
+    for bucket in (
+        strategy.strongest_opportunities,
+        strategy.stretch_opportunities,
+        strategy.jobs_to_delay,
+    ):
+        for opportunity in bucket:
+            opportunity.why_recommended = enforce_second_person(opportunity.why_recommended, user_name)
+            opportunity.required_next_steps = [
+                enforce_second_person(step, user_name) for step in opportunity.required_next_steps
+            ]
+
+    return strategy
 
 # ==============================================================================
 # MAIN EXPORTED FUNCTION

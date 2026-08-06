@@ -64,13 +64,57 @@ Routing is centralized in `backend/config/urls.py`; each app owns its own `urls.
 
 ### Chat request flow (`app/api/chat.py`)
 
-Every chat turn:
-1. Persists the user message to Django (`django_service.save_message`), passing through the caller's `Authorization` header.
-2. Runs `services/intent_service.detect_intent()` — a two-stage classifier: fast keyword/phrase rules first (`detect_intent_rule`), falling back to an AI classification prompt (`detect_intent_ai`) only if no rule matches. When adding new intents or trigger phrases, rule ordering matters — e.g. `application_strategy` and `job_recommendation` triggers are checked before the more generic `job_search`/`resume_review` keyword sets, since substring checks would otherwise misclassify them.
-3. Dispatches to a tool in `app/tools/` based on intent (`job_tool`, `resume_tool`, `resume_optimizer_tool`, `interview_tool`, `application_strategy_tool`, `career_progress_tool`, `personalized_job_recommender`) or falls back to a general chat completion (`ask_ai`).
-4. Persists the assistant reply back to Django along with structured `metadata` (e.g. job cards, interview payloads) that the frontend renders based on `message_type`.
+`chat.py` is a thin endpoint: it parses any attachment, persists the user message, loads history, runs the turn, and persists the reply. How the turn is run depends on `SEEKBOT_AGENT_MODE`:
 
-Tools that need user context (profile, resume text, skills) fetch it best-effort via `fetch_user_profile()` — failures are swallowed so the tool still runs with an empty profile rather than erroring the whole chat turn.
+- **`agent`** (default) — the objective-driven pipeline in `app/agent/`.
+- **`legacy`** — the original single-intent → single-tool dispatch chain, preserved verbatim in `_legacy_turn()`. This is the instant-revert path; do not add new behaviour to it.
+
+#### Agent pipeline (`app/agent/`)
+
+    build_plan() → load_context() → execute_plan() → verify() → compose()
+
+| Module | Responsibility |
+|---|---|
+| `planner.py` | Turns the message into **objectives**, not keywords. Three tiers, first hit wins: **Tier 0** confirmation of a pending write; **Tier 1** deterministic segmentation + the existing rule layer (0 LLM calls, handles multi-objective messages); **Tier 2** one structured-JSON LLM call. Never returns an empty plan. |
+| `capabilities.py` | The registry. Uniform adapters over `app/tools/` — no scoring/parsing/matching logic is duplicated here. The planner prompt is **generated from this registry**, so a new `Capability` entry becomes plannable automatically. |
+| `context.py` | Fetches only the Django data the plan declared (`profile`, `dashboard`, `analytics`, `interviews`) **in parallel**, best-effort. Failures degrade to empty values recorded in `missing`. |
+| `executor.py` | Resolves `depends_on` into execution waves; each wave runs on a thread pool. Capabilities with `parallel_safe=False` (writes, and `career_progress`, which is already a heavy internal orchestrator) get a wave to themselves. |
+| `completion.py` | One deterministic pre-response check — zero LLM calls. Flags silently-skipped objectives and the only two blocking conditions (`no_resume`, `no_auth`). |
+| `composer.py` | Merges all outputs into one reply. Multi-objective turns keep the existing frontend contract: the richest capability's `message_type` leads, and every payload is merged into `metadata` (`jobs`, `interview`, ...). |
+
+LLM budget: **0 calls** for a fast-path plan with deterministic capabilities, **1** if the planner falls through to Tier 2 or a capability needs generation. The orchestrator itself never calls the model.
+
+Intent → capability mapping lives in `planner._INTENT_CAPABILITY`. Every intent the rule layer can emit is mapped there — including `career_roadmap`, `market_insights`, `skill_guidance` and `project_suggestions`, which the legacy chain classified but then silently dropped into general chat.
+
+Rule ordering in `intent_service.detect_intent_rule` still matters and is unchanged — `application_strategy` and `job_recommendation` triggers are checked before the more generic `job_search`/`resume_review` keyword sets. Note that `"show ... jobs"` deliberately resolves to `job_recommendation`, not `job_search`.
+
+`planner._rule_intent` adds one more override on top of `detect_intent_rule`: a message that hedges doubt about being "good enough" (`"I'm interested in python jobs but I'm not sure if my resume is good enough"`) routes to the `readiness_check` capability instead of whatever generic keyword (e.g. bare "jobs") happened to match first. This exists because such messages are a single segment (no "and"/"then" boundary), so Tier 1 would otherwise trust its first keyword hit and never consider the rest of the sentence. `readiness_check` reuses `application_strategy_tool`'s deterministic readiness scoring but returns a short conversational summary (score, top gaps, job count) instead of the tool's full markdown report — `application_strategy` stays reserved for when the user explicitly asks for a plan ("what should I apply to first", "am I ready to apply?").
+
+#### Voice (`app/core/voice.py`)
+
+SeekBot talks **to** the user, never **about** them. `VOICE_RULES` is a prompt fragment every generative tool appends (`openai_service.SYSTEM_PROMPT`, `application_strategy_tool`), so the instruction lives in one place.
+
+Prompt instructions alone proved unreliable — models slip into recruiter-report narration ("`<Name>` is a Computer Science student with strong backend experience...") especially when the payload carries the user's name. So `capabilities.run_capability()` applies `enforce_second_person()` to **every** capability's text before it leaves the agent. That is the single voice choke point: no tool, current or future, can leak third-person copy regardless of what its own prompt does. `application_strategy_tool` additionally guards its structured fields (`career_summary`, `why_recommended`, advice, next steps) via `_enforce_strategy_voice()`.
+
+If you add a generative capability, you get the guard for free — do not bypass `run_capability`.
+
+#### Evidence-based recommendations
+
+`skill_utils.filter_demonstrated_skills()` drops proposed gaps the user already demonstrates, checking direct matches, alias implications (`gemini`/`elevenlabs` ⇒ `generative ai`, `llm`), and literal resume text. Matching is word-boundary, not substring — `orm` is a substring of `terraform`, and a Django user's implied ORM knowledge must not suppress a genuine Terraform gap. `readiness_check` runs every gap through this filter before display; recommending "learn GenAI" to someone who shipped a Gemini integration destroys trust in every other recommendation in the reply.
+
+Skills display through `canonical_skill_name()` — `str.title()` mangles technology names ("Fastapi", "Ci/Cd", "Node.Js").
+
+#### Write actions
+
+`skill_profile_sync` is the only capability that mutates user data. It is **additive only** — writes go one-at-a-time through `POST /users/skills/`, never `POST /users/skills/bulk/`, because the bulk endpoint deletes every existing skill before recreating. It is two-phase when `SEEKBOT_AGENT_CONFIRM_WRITES=1` (default): phase 1 proposes the exact skill list and stashes it as `metadata.pending_action`; phase 2 executes it on the next turn if the user confirms. Django round-trips that metadata, so no extra state store is needed.
+
+#### Agent environment flags (all optional, `seekbot-ai/.env`)
+
+`SEEKBOT_AGENT_MODE` (`agent`|`legacy`), `SEEKBOT_AGENT_PLANNER` (enable Tier 2), `SEEKBOT_AGENT_MAX_WORKERS`, `SEEKBOT_AGENT_MAX_OBJECTIVES`, `SEEKBOT_AGENT_PLANNER_MAX_TOKENS`, `SEEKBOT_AGENT_CONFIRM_WRITES`, `SEEKBOT_AGENT_DEBUG_PLAN` (attaches `_plan`/`_state` to response metadata).
+
+Agent tests: `python tests/test_agent_planner.py` and `python tests/test_agent_pipeline.py`. Both run fully offline — the planner suite forces Tier 1, the pipeline suite stubs capabilities with instrumented fakes.
+
+Tools that need user context (profile, resume text, skills) still fetch it best-effort — under the agent pipeline this is centralized in `context.py`, so a tool receives an already-loaded profile rather than making its own call.
 
 ## Frontend (`frontend/`)
 

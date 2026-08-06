@@ -1,6 +1,8 @@
 from typing import Optional
 
+from app.agent import run_agent
 from app.core.ai_logger import log_agent_response, log_tool_call, log_user_message
+from app.core.config import settings
 from app.schemas.chat import AgentMessage, ChatResponse
 from app.services.django_service import (
     fetch_user_profile,
@@ -44,10 +46,10 @@ async def chat(
 ):
     """
     Handle a chat turn:
-      1. Persist user message to Django.
-      2. Detect intent.
-      3. Dispatch to the correct tool or fallback to general AI.
-      4. Persist and return the agent reply.
+      1. Persist the user message to Django.
+      2. Run the agent pipeline (objectives → capabilities → response),
+         or the legacy single-intent dispatch when SEEKBOT_AGENT_MODE=legacy.
+      3. Persist and return the agent reply.
 
     All steps are logged to logs/ai.log.
     """
@@ -79,10 +81,75 @@ async def chat(
     history_response = get_session_messages(session_id, auth_token=authorization)
     history = history_response.get("data", [])
 
-    # ── Detect intent ─────────────────────────────────────────────────────────
+    # ── Run the turn ──────────────────────────────────────────────────────────
+    if settings.agent_mode == "legacy":
+        ai_reply, message_type, job_data, metadata = _legacy_turn(
+            session_id=session_id,
+            message=message,
+            authorization=authorization,
+            history=history,
+            file_context=file_context,
+            image_base64=image_base64,
+        )
+    else:
+        turn = run_agent(
+            session_id=session_id,
+            message=message,
+            authorization=authorization,
+            history=history,
+            file_context=file_context,
+            image_base64=image_base64,
+        )
+        ai_reply = turn.text
+        message_type = turn.message_type
+        job_data = turn.data
+        metadata = turn.metadata
+
+    # ── Log the agent response ────────────────────────────────────────────────
+    log_agent_response(session_id, message_type, ai_reply)
+
+    # ── Persist agent reply ───────────────────────────────────────────────────
+    save_message(
+        session_id=session_id,
+        role="assistant",
+        content=ai_reply,
+        message_type=message_type,
+        metadata=metadata,
+        auth_token=authorization,
+    )
+
+    return ChatResponse(
+        success=True,
+        session_id=session_id,
+        message=AgentMessage(
+            type=message_type,
+            content=ai_reply,
+            data=job_data,
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Legacy pipeline — single intent → single tool
+# ---------------------------------------------------------------------------
+#
+# Preserved verbatim behind SEEKBOT_AGENT_MODE=legacy so the agent pipeline
+# can be reverted instantly without a deploy. Do not extend this path; add
+# new behaviour as a capability in app/agent/capabilities.py instead.
+
+
+def _legacy_turn(
+    session_id: str,
+    message: str,
+    authorization: Optional[str],
+    history: list,
+    file_context: Optional[str],
+    image_base64: Optional[str],
+) -> tuple[str, str, Optional[object], dict]:
+    """Original intent-routing dispatch chain."""
+
     intent = detect_intent(message)
 
-    # ── Dispatch ──────────────────────────────────────────────────────────────
     ai_reply: str = ""
     message_type: str = "text"
     job_data: Optional[object] = None
@@ -146,28 +213,7 @@ async def chat(
         )
         message_type = "text"
 
-    # ── Log the agent response ────────────────────────────────────────────────
-    log_agent_response(session_id, message_type, ai_reply)
-
-    # ── Persist agent reply ───────────────────────────────────────────────────
-    save_message(
-        session_id=session_id,
-        role="assistant",
-        content=ai_reply,
-        message_type=message_type,
-        metadata=_build_metadata(message_type, job_data),
-        auth_token=authorization,
-    )
-
-    return ChatResponse(
-        success=True,
-        session_id=session_id,
-        message=AgentMessage(
-            type=message_type,
-            content=ai_reply,
-            data=job_data,
-        ),
-    )
+    return ai_reply, message_type, job_data, _build_metadata(message_type, job_data)
 
 
 # ---------------------------------------------------------------------------
